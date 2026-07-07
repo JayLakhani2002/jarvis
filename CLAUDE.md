@@ -5,7 +5,8 @@ This repo is the **infrastructure code** for Jay's Jarvis: the AI-company automa
 ## Read first, in order
 1. `README.md` — what exists and runs today (7 launchd jobs, pocket Telegram bot, night-shift company)
 2. `ROADMAP.md` — what we're building next, in priority order
-3. **Ground truth for WHO Jay is and WHY**: the vault at `~/Documents/J's AI Brain` — its `CLAUDE.md` (identity, rules), `GOALS.md` (the €1M plan), `operating-core.md` (behavior loop — run every response through it), and `06 Company/(C) Company OS.md` (the 13-agent org this code serves)
+3. `DECISIONS.md` — why it's built this way; append new significant decisions there
+4. **Ground truth for WHO Jay is and WHY**: the vault at `~/Documents/J's AI Brain` — its `CLAUDE.md` (identity, rules), `GOALS.md` (the €1M plan), `operating-core.md` (behavior loop — run every response through it), and `06 Company/(C) Company OS.md` (the 13-agent org this code serves)
 
 ## Rules for working in this repo
 - The vault is the brain; this repo is the hands. Product decisions live there, code lives here.
