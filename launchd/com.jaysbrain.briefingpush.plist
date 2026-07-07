@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key><string>com.jaysbrain.briefingpush</string>
+	<key>ProgramArguments</key>
+	<array><string>/bin/bash</string><string>/Users/jay/Documents/Jarvis/bin/briefing_push.sh</string></array>
+	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
+	
+	<key>EnvironmentVariables</key>
+	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/briefingpush.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/briefingpush.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,5 @@
+{
+  "files.exclude": { "**/__pycache__": true, "**/.DS_Store": true },
+  "files.associations": { "*.plist": "xml", "night_shift_prompt.md": "markdown" },
+  "editor.rulers": [100]
+}
