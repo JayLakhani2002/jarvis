@@ -49,3 +49,11 @@ Why Jarvis is built the way it is. Each entry: the call, the reason, what was re
 **Vault RAG is fully local: Ollama + nomic-embed-text, index in `~/.jarvis-rag/` (0600, outside vault/git).** Same privacy rule as snapshots — embeddings of journals/health never leave the machine. Incremental by mtime; ~273 chunks over 86 notes. `ask` mode retrieves top-8 chunks and pipes them to `claude -p` for a cited answer. Rejected: cloud embedding APIs (privacy + new secret) and pip/torch stacks (2GB dep for no gain).
 
 **Python launchd jobs must exec via bash + `/opt/homebrew/bin/python3`.** `/usr/bin/python3` shims to Xcode's python, which has no TCC disk access under launchd — the telegram bot crash-looped with "Operation not permitted" after a reload. Bash is already TCC-approved (all bash jobs work), so python jobs run as `/bin/bash -c "exec /opt/homebrew/bin/python3 …"`.
+
+## 2026-07-08 — v1.3, voice round-trip (Mac half)
+
+**Siri reaches Jarvis over LAN HTTP, not a cloud relay.** `voice_server.py` — stdlib ThreadingHTTPServer on :8765, KeepAlive launchd job. iOS Shortcut dictates → GET /ask → RAG top-6 chunks → `claude -p` constrained to ≤3 spoken sentences (no markdown/citations — Siri reads it) → Shortcut speaks. ~15s round-trip measured. Rejected: cloud tunnel/relay (vault answers would transit a third party) and a Telegram-voice hack (no Siri, no hands-free).
+
+**Voice server is read-only by design.** Endpoints only answer (/ask, /brief, /health); no write/task/send paths — a device on the Wi-Fi holding the key can learn things, never change things. Auth = 32-hex shared key in `config/voice.conf` (gitignored, 0600), verified 403 without it. Accepted risk: plain HTTP on the home LAN; revisit if Jarvis ever answers off-network (Tailscale, not port-forwarding).
+
+**Phone half stays human.** Apple sandboxes Shortcuts creation — no way to install them from the Mac. The exact recipe (URLs with real hostname+key prefilled) waits in vault Drafts; uses the .local hostname so DHCP changes don't break it.

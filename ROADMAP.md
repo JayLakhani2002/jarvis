@@ -2,6 +2,9 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.3 — shipped 2026-07-08
+- **Voice round-trip (Mac half)** — `voiceserver` job: authenticated LAN HTTP :8765; `/ask` = RAG + claude in ≤3 spoken sentences (~15s), `/brief` for the 7am read-aloud. Phone half = 5-min Shortcut recipe waiting in vault `06 Company/Drafts/Jarvis Voice — iOS Shortcut Setup.md` (Jay's hands)
+
 ## ✅ v1.2 — shipped 2026-07-08 (Tier 2 opened by Jay's call)
 - **Vault RAG** — `ragindex` job 20:45: all 86 notes embedded locally (Ollama + nomic-embed-text) into `~/.jarvis-rag/`; `vault_rag.py search|ask` gives cited semantic answers; Telegram `/search` from the phone
 - **Night shift PAUSED by Jay** until he picks the project it runs on — plist parked in `launchd/disabled/`; watchdog + `/status` know and stay quiet
@@ -25,7 +28,7 @@ What's next, in order. Operational task queue = the vault's `06 Company/(C) Back
 ## 🧊 Tier 2 (after thesis momentum is safe, ≥20h/wk sustained)
 *(Tier 2 opened early on Jay's 2026-07-08 instruction; thesis-hours gate waived by him.)*
 - ~~**Vault RAG**~~ ✅ shipped in v1.2
-- **Voice round-trip** — "Hey Siri, ask Jarvis…" → Mac → spoken answer; plus Shortcut that reads the briefing aloud at 7am *(next; needs Jay's iOS hands for the Shortcut half)*
+- ~~**Voice round-trip**~~ ✅ Mac half shipped in v1.3 — awaiting Jay's 5-min iOS Shortcut build (recipe in vault Drafts)
 - **Jarvis dashboard** — habit trends, timeline progress, Decision Inbox count, Agora metrics on one screen
 - **Email triage agent** — inbox summary into briefing, drafted replies for ratification
 - **CFO net-worth tracker** — bank CSV drop-folder → monthly GOALS numbers update
