@@ -33,3 +33,9 @@ Why Jarvis is built the way it is. Each entry: the call, the reason, what was re
 **operating-core.md is the model-agnostic behavior layer.** Loaded via vault CLAUDE.md pointer + claude.ai Project files + this repo's CLAUDE.md. Precedence: Jay live > CLAUDE.md identity > operating-core. Includes §0 read-the-ask (restate intent, sharpen weak prompts) and §0.5 skill routing (route via the vault's Claude Toolbox, weighed against the one track).
 
 **Brain graph must stay one connected component.** 🧠 HOME is the hub; automations self-link their outputs (shift reports, monthly Quick Capture) so no note is born an orphan. Verified 85 notes / 0 orphans / 1 component at ship time.
+
+## 2026-07-07 — v1.1, market radar + weekly review draft
+
+**Market radar uses arbeitnow.com's free API, not firecrawl/Apify.** The roadmap suggested firecrawl/Apify, but both need API keys/credits in an unattended launchd job; arbeitnow is keyless, JSON, covers German postings, and stdlib-python parses it — zero new dependencies or secrets. Trade-off accepted: it's a ~1500-posting sample, not exhaustive LinkedIn/Indeed coverage — good enough for trend + top-companies signal. Revisit Apify if the sample proves too thin. Radar runs 01:30 so numbers are fresh for the 02:00 shift; note keeps a 90-day trend table and self-links to [[🧠 HOME]].
+
+**Weekly review is drafted, never written, by the machine.** `weekly_brain_sync.sh` ends with a `claude -p` call that writes `06 Company/Drafts/Weekly Review Draft <date>.md` from the week's Quick Capture, journals, and GOALS. Unknown numbers are written as "?? (fill in)" — the agent must not invent habit data. Jay edits ~5 min and ratifies; the draft-only boundary holds.

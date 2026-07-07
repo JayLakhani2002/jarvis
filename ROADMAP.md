@@ -2,6 +2,10 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.1 — shipped 2026-07-07 (evening)
+- **Agora market radar** — `marketradar` job, 01:30 nightly: arbeitnow.com scan → Berlin werkstudent stats + daily trend table in `06 Company/(C) Market Radar.md`; night-shift agents cite real numbers
+- **Sunday auto-review draft** — `weekly_brain_sync.sh` now ends with a headless agent drafting the weekly review (4 habit numbers, git, plan adherence, one-track check, next-week priorities) into `06 Company/Drafts/`
+
 ## ✅ v1 — shipped 2026-07-07
 - 13-agent company (charters in `~/.claude/agents/`) with draft-and-ratify protocol
 - Night shift 02:00 (headless chief-of-staff, ≤3 backlog items, draft-only)
@@ -11,9 +15,7 @@ What's next, in order. Operational task queue = the vault's `06 Company/(C) Back
 - Vault graph fully connected (🧠 HOME hub, 0 orphans)
 
 ## 🔜 Next up (approved, in order)
-1. **Agora market radar** — nightly firecrawl/Apify scrape of Berlin werkstudent postings → stats note in vault → CMO/CTO agents cite real market data. *Directly serves the one track.* (~2-3h)
-2. **Sunday auto-review draft** — extend `bin/weekly_brain_sync.sh`: agent drafts the full weekly review (4 habit numbers, git, calendar adherence); Jay edits 5 min instead of writing 30. (~1h)
-3. **Briefing content spec** — Jay will define exactly what the 07:00 Telegram message must contain (personal items included). Reshape `night_shift_prompt.md` + `briefing_push.sh` around it. *(waiting on Jay's spec)*
+1. **Briefing content spec** — Jay will define exactly what the 07:00 Telegram message must contain (personal items included). Reshape `night_shift_prompt.md` + `briefing_push.sh` around it. *(waiting on Jay's spec)*
 
 ## 🧊 Tier 2 (after thesis momentum is safe, ≥20h/wk sustained)
 - **Voice round-trip** — "Hey Siri, ask Jarvis…" → Mac → spoken answer; plus Shortcut that reads the briefing aloud at 7am

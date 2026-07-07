@@ -21,8 +21,16 @@ AGE=$(( ($(date +%s) - LAST_SYNC) / 3600 ))
 LAST_SNAP=$(git --git-dir="$HOME/.jarvis-vault-backup.git" log -1 --format=%ct 2>/dev/null || echo 0)
 SAGE=$(( ($(date +%s) - LAST_SNAP) / 3600 ))
 [ "$SAGE" -gt 3 ] && ISSUES="$ISSUES\n- ⚠️ Vault snapshots stale: last ${SAGE}h ago"
+# market radar: note updated within last 26h?
+RADAR="$VAULT/06 Company/(C) Market Radar.md"
+if [ -f "$RADAR" ]; then
+  RAGE=$(( ($(date +%s) - $(stat -f %m "$RADAR")) / 3600 ))
+  [ "$RAGE" -gt 26 ] && ISSUES="$ISSUES\n- ⚠️ Market Radar stale: last update ${RAGE}h ago"
+else
+  ISSUES="$ISSUES\n- ⚠️ Market Radar note missing (marketradar job never ran?)"
+fi
 # launchd jobs loaded?
-for job in nightshift dailysync weeklysync vaultsnapshot briefingpush watchdog; do
+for job in nightshift dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar; do
   launchctl list 2>/dev/null | grep -q "com.jaysbrain.$job" || ISSUES="$ISSUES\n- ⚠️ launchd job NOT loaded: $job"
 done
 
@@ -30,5 +38,5 @@ if [ -n "$ISSUES" ]; then
   printf '\n## 🩺 Watchdog (%s)%b\n' "$TODAY" "$ISSUES" >> "$BRIEFING"
   osascript -e 'display notification "Automation issues found — see Morning Briefing" with title "🩺 Jarvis Watchdog"' 2>/dev/null
 else
-  printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: night shift, syncs, snapshots, 6/6 jobs loaded\n' "$TODAY" >> "$BRIEFING"
+  printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: night shift, syncs, snapshots, market radar, 7/7 jobs loaded\n' "$TODAY" >> "$BRIEFING"
 fi

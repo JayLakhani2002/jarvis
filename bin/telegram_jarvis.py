@@ -82,9 +82,9 @@ def handle(token, chat_id, text):
         return send(token, chat_id, open(BRIEFING).read()[:3900])
     if t.startswith("/status"):
         jobs = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
-        loaded = [j for j in ["nightshift","dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot"]
+        loaded = [j for j in ["nightshift","dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar"]
                   if f"com.jaysbrain.{j}" in jobs]
-        return send(token, chat_id, f"🩺 {len(loaded)}/7 jobs loaded: {', '.join(loaded)}")
+        return send(token, chat_id, f"🩺 {len(loaded)}/8 jobs loaded: {', '.join(loaded)}")
     send(token, chat_id, "🧠 thinking…")
     send(token, chat_id, ask_claude(t))
 

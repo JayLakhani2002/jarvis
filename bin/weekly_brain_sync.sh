@@ -60,3 +60,17 @@ else
 fi
 
 echo "- [ ] Reminder: fold this into the weekly review + confirm the 4 habit numbers (sleep / clean days / gym / thesis hours)" >> "$CAPTURE"
+
+# --- Weekly review DRAFT (agent-written, Jay edits ~5 min instead of writing 30) ---
+DRAFTS="$VAULT/06 Company/Drafts"
+mkdir -p "$DRAFTS"
+DRAFT_FILE="$DRAFTS/Weekly Review Draft $DATE.md"
+CLAUDE_BIN="$(command -v claude || echo "$HOME/.local/bin/claude")"
+LOG="$HOME/Documents/Jarvis/logs/weekly_review_draft.log"
+if [ -x "$CLAUDE_BIN" ]; then
+  (cd "$VAULT" && "$CLAUDE_BIN" -p "Draft Jay's weekly review for the week ending $DATE into the file '$DRAFT_FILE'. DRAFT ONLY — Jay ratifies; never send or delete anything. Sources: this week's section of '$CAPTURE' (git activity + health summary just appended), '01 Journals' entries from the last 7 days, 'GOALS.md', and '06 Company/(C) Morning Briefing.md'. The draft must contain: (1) the 4 habit numbers — avg sleep, clean days, gym sessions, thesis hours — with a one-line verdict each vs target; (2) git/shipping activity per project; (3) calendar/plan adherence: what was planned vs what actually happened, and the biggest drift; (4) one-track check: did the week serve Thesis → BSS Sept 13 → Agora Oct beta; (5) 3 proposed priorities for next week. Start the file with '*DRAFT by Jarvis — edit then move into your weekly review. Part of [[🧠 HOME]]*'. Where a number is unknown, write '?? (fill in)' rather than guessing." \
+    --permission-mode acceptEdits --max-turns 30) >> "$LOG" 2>&1
+  [ -f "$DRAFT_FILE" ] && echo "- [ ] Weekly review DRAFT ready: [[Weekly Review Draft $DATE]] — edit + ratify" >> "$CAPTURE"
+else
+  echo "- ⚠️ weekly review draft skipped: claude CLI not found" >> "$CAPTURE"
+fi
