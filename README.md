@@ -7,13 +7,14 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 | Job (launchd) | Schedule | Script | What it does |
 |---|---|---|---|
 | `telegrambot` | always on (KeepAlive) | `bin/telegram_jarvis.py` | Pocket Jarvis: @Jarvis_for_Jay_bot answers from the vault; `/task` `/brief` `/status` |
-| `nightshift` | 02:00 daily | `bin/night_shift.sh` | Headless chief-of-staff works ≤3 Backlog items (draft-only) → Shift Report + Decision Inbox + Morning Briefing |
+| `nightshift` | **PAUSED by Jay** (plist in `launchd/disabled/`) | `bin/night_shift.sh` | Headless chief-of-staff works ≤3 Backlog items (draft-only) → Shift Report + Decision Inbox + Morning Briefing. Re-enable: `git mv launchd/disabled/com.jaysbrain.nightshift.plist launchd/ && ./install.sh` |
 | `watchdog` | 06:55 daily | `bin/watchdog.sh` | Verifies every job ran; appends 🩺 status to the briefing |
 | `briefingpush` | 07:00 daily | `bin/briefing_push.sh` | Sends Morning Briefing to Telegram (iMessage fallback) |
 | `vaultsnapshot` | hourly | `bin/vault_snapshot.sh` | Commits vault content to local backup repo `~/.jarvis-vault-backup.git` (never leaves the machine) |
 | `dailysync` | 21:00 daily | `bin/brain_cloud_sync.sh` | Pushes core brain files → private GitHub `jarvis-brain-sync` → claude.ai Project |
 | `weeklysync` | Sun 18:05 | `bin/weekly_brain_sync.sh` | Git activity + 7-day health digest → vault Quick Capture, then drafts the weekly review into `06 Company/Drafts/` (Jay edits + ratifies) |
 | `marketradar` | 01:30 daily | `bin/market_radar.py` | Scans arbeitnow.com for Berlin werkstudent postings → stats + trend table in `06 Company/(C) Market Radar.md` (fresh before the 02:00 shift) |
+| `ragindex` | 20:45 daily | `bin/vault_rag.py index` | Vault RAG: embeds every note (nomic-embed-text via local Ollama) → `~/.jarvis-rag/` (local-only). Query: `vault_rag.py search/ask` or Telegram `/search` |
 
 ## Layout
 

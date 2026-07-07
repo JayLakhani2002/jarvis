@@ -39,3 +39,13 @@ Why Jarvis is built the way it is. Each entry: the call, the reason, what was re
 **Market radar uses arbeitnow.com's free API, not firecrawl/Apify.** The roadmap suggested firecrawl/Apify, but both need API keys/credits in an unattended launchd job; arbeitnow is keyless, JSON, covers German postings, and stdlib-python parses it — zero new dependencies or secrets. Trade-off accepted: it's a ~1500-posting sample, not exhaustive LinkedIn/Indeed coverage — good enough for trend + top-companies signal. Revisit Apify if the sample proves too thin. Radar runs 01:30 so numbers are fresh for the 02:00 shift; note keeps a 90-day trend table and self-links to [[🧠 HOME]].
 
 **Weekly review is drafted, never written, by the machine.** `weekly_brain_sync.sh` ends with a `claude -p` call that writes `06 Company/Drafts/Weekly Review Draft <date>.md` from the week's Quick Capture, journals, and GOALS. Unknown numbers are written as "?? (fill in)" — the agent must not invent habit data. Jay edits ~5 min and ratifies; the draft-only boundary holds.
+
+## 2026-07-08 — v1.2, Tier 2 opened + night shift paused
+
+**Night shift paused by Jay's explicit call, mechanism = `launchd/disabled/`.** Jay ordered the 02:00 run held until he picks its project. Pattern: paused plists move to `launchd/disabled/`; `install.sh` unloads them, watchdog and `/status` check the marker and stay silent instead of false-alarming daily. Re-enable is a `git mv` + `./install.sh`.
+
+**Tier 2 gate waived by founder.** The ≥20h/wk thesis gate was Jay's own rule; he overrode it explicitly ("start working on tier 2"). Trade-off flagged once per protocol, then built. Vault RAG chosen first (voice round-trip needs his iOS hands).
+
+**Vault RAG is fully local: Ollama + nomic-embed-text, index in `~/.jarvis-rag/` (0600, outside vault/git).** Same privacy rule as snapshots — embeddings of journals/health never leave the machine. Incremental by mtime; ~273 chunks over 86 notes. `ask` mode retrieves top-8 chunks and pipes them to `claude -p` for a cited answer. Rejected: cloud embedding APIs (privacy + new secret) and pip/torch stacks (2GB dep for no gain).
+
+**Python launchd jobs must exec via bash + `/opt/homebrew/bin/python3`.** `/usr/bin/python3` shims to Xcode's python, which has no TCC disk access under launchd — the telegram bot crash-looped with "Operation not permitted" after a reload. Bash is already TCC-approved (all bash jobs work), so python jobs run as `/bin/bash -c "exec /opt/homebrew/bin/python3 …"`.

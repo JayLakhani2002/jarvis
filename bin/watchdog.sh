@@ -5,8 +5,11 @@ BRIEFING="$VAULT/06 Company/(C) Morning Briefing.md"
 TODAY=$(date +%Y-%m-%d)
 ISSUES=""
 
+# night shift: skip all checks while Jay has it paused (plist in launchd/disabled/)
+NS_DISABLED=""
+[ -f "$HOME/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist" ] && NS_DISABLED=1
 # night shift: did today's shift report or log entry appear?
-if ! ls "$VAULT/06 Company/Shift Reports/"*"$TODAY"* >/dev/null 2>&1; then
+if [ -z "$NS_DISABLED" ] && ! ls "$VAULT/06 Company/Shift Reports/"*"$TODAY"* >/dev/null 2>&1; then
   if grep -q "start: $(date '+%a %b')" "$HOME/Documents/Jarvis/logs/night_shift.log" 2>/dev/null && grep "start:" "$HOME/Documents/Jarvis/logs/night_shift.log" | tail -1 | grep -q "$(date '+%b %e')"; then
     ISSUES="$ISSUES\n- ⚠️ Night shift ran but produced no Shift Report (check .scripts/night_shift.log)"
   else
@@ -30,7 +33,9 @@ else
   ISSUES="$ISSUES\n- ⚠️ Market Radar note missing (marketradar job never ran?)"
 fi
 # launchd jobs loaded?
-for job in nightshift dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar; do
+JOBS="dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar ragindex"
+[ -z "$NS_DISABLED" ] && JOBS="nightshift $JOBS"
+for job in $JOBS; do
   launchctl list 2>/dev/null | grep -q "com.jaysbrain.$job" || ISSUES="$ISSUES\n- ⚠️ launchd job NOT loaded: $job"
 done
 
@@ -38,5 +43,5 @@ if [ -n "$ISSUES" ]; then
   printf '\n## 🩺 Watchdog (%s)%b\n' "$TODAY" "$ISSUES" >> "$BRIEFING"
   osascript -e 'display notification "Automation issues found — see Morning Briefing" with title "🩺 Jarvis Watchdog"' 2>/dev/null
 else
-  printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: night shift, syncs, snapshots, market radar, 7/7 jobs loaded\n' "$TODAY" >> "$BRIEFING"
+  printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: syncs, snapshots, market radar, RAG index, all jobs loaded (night shift %s)\n' "$TODAY" "$([ -n "$NS_DISABLED" ] && echo 'paused by Jay' || echo 'ok')" >> "$BRIEFING"
 fi

@@ -2,6 +2,11 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.2 — shipped 2026-07-08 (Tier 2 opened by Jay's call)
+- **Vault RAG** — `ragindex` job 20:45: all 86 notes embedded locally (Ollama + nomic-embed-text) into `~/.jarvis-rag/`; `vault_rag.py search|ask` gives cited semantic answers; Telegram `/search` from the phone
+- **Night shift PAUSED by Jay** until he picks the project it runs on — plist parked in `launchd/disabled/`; watchdog + `/status` know and stay quiet
+- Fixed: telegram bot crash-loop (Xcode python TCC denial) — python jobs now exec through bash + homebrew python
+
 ## ✅ v1.1 — shipped 2026-07-07 (evening)
 - **Agora market radar** — `marketradar` job, 01:30 nightly: arbeitnow.com scan → Berlin werkstudent stats + daily trend table in `06 Company/(C) Market Radar.md`; night-shift agents cite real numbers
 - **Sunday auto-review draft** — `weekly_brain_sync.sh` now ends with a headless agent drafting the weekly review (4 habit numbers, git, plan adherence, one-track check, next-week priorities) into `06 Company/Drafts/`
@@ -18,8 +23,9 @@ What's next, in order. Operational task queue = the vault's `06 Company/(C) Back
 1. **Briefing content spec** — Jay will define exactly what the 07:00 Telegram message must contain (personal items included). Reshape `night_shift_prompt.md` + `briefing_push.sh` around it. *(waiting on Jay's spec)*
 
 ## 🧊 Tier 2 (after thesis momentum is safe, ≥20h/wk sustained)
-- **Voice round-trip** — "Hey Siri, ask Jarvis…" → Mac → spoken answer; plus Shortcut that reads the briefing aloud at 7am
-- **Vault RAG** — embeddings over all notes+books; semantic search with sources (doubles as Jay's RAG education)
+*(Tier 2 opened early on Jay's 2026-07-08 instruction; thesis-hours gate waived by him.)*
+- ~~**Vault RAG**~~ ✅ shipped in v1.2
+- **Voice round-trip** — "Hey Siri, ask Jarvis…" → Mac → spoken answer; plus Shortcut that reads the briefing aloud at 7am *(next; needs Jay's iOS hands for the Shortcut half)*
 - **Jarvis dashboard** — habit trends, timeline progress, Decision Inbox count, Agora metrics on one screen
 - **Email triage agent** — inbox summary into briefing, drafted replies for ratification
 - **CFO net-worth tracker** — bank CSV drop-folder → monthly GOALS numbers update

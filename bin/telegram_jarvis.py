@@ -67,7 +67,16 @@ def handle(token, chat_id, text):
             "• any message → answered from the brain\n"
             "• /task <thing> → added to company Backlog (night shift picks it up)\n"
             "• /brief → current Morning Briefing\n"
+            "• /search <query> → semantic search over the whole vault (RAG)\n"
             "• /status → are all systems running?")
+    if t.startswith("/search"):
+        q = t[7:].strip()
+        if not q:
+            return send(token, chat_id, "Usage: /search <query>")
+        send(token, chat_id, "🔎 searching the brain…")
+        p = subprocess.run(["/opt/homebrew/bin/python3", os.path.expanduser("~/Documents/Jarvis/bin/vault_rag.py"), "search", q, "4"],
+                           capture_output=True, text=True, timeout=120)
+        return send(token, chat_id, (p.stdout.strip() or p.stderr.strip())[:3900])
     if t.startswith("/task"):
         item = t[5:].strip()
         if not item:
@@ -82,9 +91,12 @@ def handle(token, chat_id, text):
         return send(token, chat_id, open(BRIEFING).read()[:3900])
     if t.startswith("/status"):
         jobs = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
-        loaded = [j for j in ["nightshift","dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar"]
-                  if f"com.jaysbrain.{j}" in jobs]
-        return send(token, chat_id, f"🩺 {len(loaded)}/8 jobs loaded: {', '.join(loaded)}")
+        expected = ["dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar","ragindex"]
+        if not os.path.exists(os.path.expanduser("~/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist")):
+            expected.append("nightshift")
+        loaded = [j for j in expected if f"com.jaysbrain.{j}" in jobs]
+        note = "" if "nightshift" in expected else " (night shift paused by Jay)"
+        return send(token, chat_id, f"🩺 {len(loaded)}/{len(expected)} jobs loaded: {', '.join(loaded)}{note}")
     send(token, chat_id, "🧠 thinking…")
     send(token, chat_id, ask_claude(t))
 
