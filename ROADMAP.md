@@ -2,6 +2,9 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.4 — shipped 2026-07-08
+- **Jarvis dashboard** — `dashboard` job (every 30 min): one-screen HTML at `dashboard/index.html` — deadline countdowns (Thesis/BSS/Agora), 4-habit sparklines, Decision Inbox + Backlog counts, Agora market trend, automation health. Phone view via voiceserver `/dash?key=…`. Habit charts fill once Jay builds the "Log Health" iOS Shortcut
+
 ## ✅ v1.3 — shipped 2026-07-08
 - **Voice round-trip (Mac half)** — `voiceserver` job: authenticated LAN HTTP :8765; `/ask` = RAG + claude in ≤3 spoken sentences (~15s), `/brief` for the 7am read-aloud. Phone half = 5-min Shortcut recipe waiting in vault `06 Company/Drafts/Jarvis Voice — iOS Shortcut Setup.md` (Jay's hands)
 
@@ -29,7 +32,7 @@ What's next, in order. Operational task queue = the vault's `06 Company/(C) Back
 *(Tier 2 opened early on Jay's 2026-07-08 instruction; thesis-hours gate waived by him.)*
 - ~~**Vault RAG**~~ ✅ shipped in v1.2
 - ~~**Voice round-trip**~~ ✅ Mac half shipped in v1.3 — awaiting Jay's 5-min iOS Shortcut build (recipe in vault Drafts)
-- **Jarvis dashboard** — habit trends, timeline progress, Decision Inbox count, Agora metrics on one screen
+- ~~**Jarvis dashboard**~~ ✅ shipped in v1.4
 - **Email triage agent** — inbox summary into briefing, drafted replies for ratification
 - **CFO net-worth tracker** — bank CSV drop-folder → monthly GOALS numbers update
 

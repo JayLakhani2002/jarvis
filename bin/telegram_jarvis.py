@@ -91,7 +91,7 @@ def handle(token, chat_id, text):
         return send(token, chat_id, open(BRIEFING).read()[:3900])
     if t.startswith("/status"):
         jobs = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
-        expected = ["dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar","ragindex","voiceserver"]
+        expected = ["dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar","ragindex","voiceserver","dashboard"]
         if not os.path.exists(os.path.expanduser("~/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist")):
             expected.append("nightshift")
         loaded = [j for j in expected if f"com.jaysbrain.{j}" in jobs]

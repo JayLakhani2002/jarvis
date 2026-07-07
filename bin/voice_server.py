@@ -66,6 +66,18 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 return self.reply(404, "no briefing yet")
             return self.reply(200, text[:6000])
+        if url.path == "/dash":
+            dash = os.path.expanduser("~/Documents/Jarvis/dashboard/index.html")
+            try:
+                body = open(dash, "rb").read()
+            except OSError:
+                return self.reply(404, "dashboard not generated yet")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if url.path == "/ask":
             question = q.get("q", [""])[0].strip()
             if not question:

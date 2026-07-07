@@ -33,7 +33,7 @@ else
   ISSUES="$ISSUES\n- ⚠️ Market Radar note missing (marketradar job never ran?)"
 fi
 # launchd jobs loaded?
-JOBS="dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar ragindex voiceserver"
+JOBS="dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar ragindex voiceserver dashboard"
 [ -z "$NS_DISABLED" ] && JOBS="nightshift $JOBS"
 for job in $JOBS; do
   launchctl list 2>/dev/null | grep -q "com.jaysbrain.$job" || ISSUES="$ISSUES\n- ⚠️ launchd job NOT loaded: $job"

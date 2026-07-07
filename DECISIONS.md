@@ -57,3 +57,9 @@ Why Jarvis is built the way it is. Each entry: the call, the reason, what was re
 **Voice server is read-only by design.** Endpoints only answer (/ask, /brief, /health); no write/task/send paths — a device on the Wi-Fi holding the key can learn things, never change things. Auth = 32-hex shared key in `config/voice.conf` (gitignored, 0600), verified 403 without it. Accepted risk: plain HTTP on the home LAN; revisit if Jarvis ever answers off-network (Tailscale, not port-forwarding).
 
 **Phone half stays human.** Apple sandboxes Shortcuts creation — no way to install them from the Mac. The exact recipe (URLs with real hostname+key prefilled) waits in vault Drafts; uses the .local hostname so DHCP changes don't break it.
+
+## 2026-07-08 — v1.4, dashboard
+
+**Dashboard is a generated static HTML file, not an app or live server.** `dashboard.py` re-renders `dashboard/index.html` every 30 min (self-contained: inline CSS + SVG sparklines, no CDN, works offline; light+dark via prefers-color-scheme). Gitignored — it embeds health numbers, same never-leaves-the-machine rule. Phone access piggybacks on the existing key-authed voiceserver (`/dash`) instead of opening a second port. Rejected: React/chart-lib stack (build step + deps for five sparklines) and putting the HTML inside the vault (Obsidian would index it).
+
+**Empty states over fake data.** Health panels say "not enough data yet — 0 logged days" because the Log Health Shortcut isn't built; the market trend shows 1 scan. The dashboard never interpolates or invents numbers — panels fill as real data accrues. Palette = validated dataviz reference set (blue habits / aqua market, direct value labels satisfy the contrast-relief rule).
