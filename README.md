@@ -18,13 +18,15 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 | `dashboard` | every 30 min + at load | `bin/dashboard.py` | One-screen JARVIS-HUD dashboard (habits, deadlines countdown, Decision Inbox, Agora market, job health) → `dashboard/index.html` (gitignored). View: open the file, or phone via `voiceserver` `/dash?key=…` |
 | `ragindex` | 20:45 daily | `bin/vault_rag.py index` | Vault RAG: embeds every note (nomic-embed-text via local Ollama) → `~/.jarvis-rag/` (local-only). Query: `vault_rag.py search/ask` or Telegram `/search` |
 | `emailtriage` | 06:40 daily | `bin/email_triage.py` | Reads Gmail inbox **read-only** over IMAP (BODY.PEEK), claude classifies needs-reply/FYI/noise → `## 📧 Inbox` section in the briefing + reply drafts in `06 Company/Drafts/` for ratification. **Dormant until `config/email.conf` exists** (setup recipe in vault Drafts). Never sends/marks-read/moves mail |
+| `networth` | 08:05 daily | `bin/networth.py` | CFO tracker: parses bank CSVs dropped in `finance/inbox/` via per-bank mappings (`config/banks.json`) → maintains a marker-managed `## 📊 Net worth` block in the vault's `GOALS.md` (per-account + monthly history). **Dormant until a CSV is in the inbox** (setup recipe in vault Drafts). Reads CSVs, writes only its GOALS block — never sends/spends; bank data never hits the logs |
 
 ## Layout
 
 ```
 bin/        all executable scripts + night_shift_prompt.md (the shift's orders)
 launchd/    plist SOURCES (versioned) — edit here, never in ~/Library directly
-config/     telegram.conf (bot token + chat id) — gitignored, never committed
+config/     telegram.conf (bot token + chat id), banks.json (net-worth column mappings) — gitignored, never committed
+finance/    networth job's watched folders: inbox/ processed/ failed/ + state.json — gitignored (bank data never leaves the machine)
 logs/       archived pre-v1.5 job logs (gitignored); live stdout/err + app logs now write to ~/Library/Logs/Jarvis (outside TCC/iCloud — see gotcha 7)
 install.sh  deploys launchd/*.plist → ~/Library/LaunchAgents and reloads them
 ```

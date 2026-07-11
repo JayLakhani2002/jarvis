@@ -2,6 +2,9 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.7 — CFO net-worth tracker, shipped 2026-07-11
+- **Net-worth tracker** — `networth` job, 08:05 daily: Jay drops bank CSV exports into `finance/inbox/`; the job parses each with a per-bank column mapping (`config/banks.json`), computes each account's balance in **balance mode** (newest-dated row's balance) or **sum mode** (`starting_balance` + Σ amounts), handles German (`1.234,56`) vs US (`1,234.56`) decimals + currency symbols + UTF-8 BOM, keeps a per-account + monthly-history `finance/state.json`, and maintains a marker-delimited `## 📊 Net worth (Jarvis-tracked)` block in the vault's `GOALS.md` (per-account bullets + monthly Δ table). Stdlib-only (csv/json/datetime). Processed files → `finance/processed/`, unreadable → `finance/failed/`. **Dormant (exit 0) until a CSV is dropped**; a broken mapping config with files waiting, or any failed file, exits 1 (watchdog flags it). Generic mapper (Jay's call) over per-bank hardcoding; never writes GOALS until the first successful ingest, never edits outside its markers, `finance/` gitignored so bank data can't be committed. Setup recipe in vault `06 Company/Drafts/Jarvis Net Worth — Setup.md`.
+
 ## ✅ v1.6 — email triage, shipped 2026-07-11
 - **Email triage agent** — `emailtriage` job, 06:40 daily: reads Jay's Gmail inbox **read-only** over IMAP (LOGIN / SELECT readonly / SEARCH / FETCH BODY.PEEK / LOGOUT only — never sends, marks read, or moves mail), claude classifies each message needs-reply/FYI/noise → self-pruning `## 📧 Inbox` section in the Morning Briefing + reply drafts into `06 Company/Drafts/` for Jay to approve and send himself. Stdlib-only (imaplib/email/ssl), zero new deps. **Dormant until `config/email.conf` exists** — 5-min app-password setup recipe waits in vault `06 Company/Drafts/Jarvis Email — Setup.md` (Jay's hands). Dormant exits 0 (watchdog quiet); configured-but-broken exits 1 (watchdog flags it).
 
@@ -51,7 +54,7 @@ Full test pass over every v1.1–v1.4 feature (context7-verified Telegram Bot AP
 - ~~**Voice round-trip**~~ ✅ Mac half shipped in v1.3 — awaiting Jay's 5-min iOS Shortcut build (recipe in vault Drafts)
 - ~~**Jarvis dashboard**~~ ✅ shipped in v1.4
 - ~~**Email triage agent**~~ ✅ shipped in v1.6 — inbox summary into briefing, drafted replies for ratification
-- **CFO net-worth tracker** — bank CSV drop-folder → monthly GOALS numbers update
+- ~~**CFO net-worth tracker**~~ ✅ shipped in v1.7 — bank CSV drop-folder → per-account balances + monthly GOALS net-worth block
 
 ## 🌌 Tier 3 (December review)
 - Decision-memory learning loop (agents learn Jay's ratification patterns)
