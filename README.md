@@ -9,7 +9,7 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 | `telegrambot` | always on (KeepAlive) | `bin/telegram_jarvis.py` | Pocket Jarvis: @Jarvis_for_Jay_bot answers from the vault; `/task` `/brief` `/status` |
 | `nightshift` | **PAUSED by Jay** (plist in `launchd/disabled/`) | `bin/night_shift.sh` | Headless chief-of-staff works ≤3 Backlog items (draft-only) → Shift Report + Decision Inbox + Morning Briefing. Re-enable: `git mv launchd/disabled/com.jaysbrain.nightshift.plist launchd/ && ./install.sh` |
 | `watchdog` | 06:55 daily | `bin/watchdog.sh` | Verifies every job ran; appends 🩺 status to the briefing |
-| `briefingpush` | 07:00 daily | `bin/briefing_push.sh` | Sends Morning Briefing to Telegram (iMessage fallback) |
+| `briefingpush` | 07:00 daily | `bin/briefing_push.sh` → `bin/briefing_build.py` | Assembles the ratified "commander brief" (≤15 lines, numbers-first) deterministically from vault sources — deadlines, deadline-weighted top-3 backlog, Decision Inbox, habits, market radar, email, calendar, watchdog — and pushes to Telegram (iMessage fallback). Also inserts a self-pruning `## ⚡ 07:00 Brief` section atop the note so `/brief` leads with it. Builder fails/empty → falls back to sending the raw note |
 | `vaultsnapshot` | hourly | `bin/vault_snapshot.sh` | Commits vault content to local backup repo `~/.jarvis-vault-backup.git` (never leaves the machine) |
 | `dailysync` | 21:00 daily | `bin/brain_cloud_sync.sh` | Pushes core brain files → private GitHub `jarvis-brain-sync` → claude.ai Project |
 | `weeklysync` | Sun 18:05 | `bin/weekly_brain_sync.sh` | Git activity + 7-day health digest → vault Quick Capture, then drafts the weekly review into `06 Company/Drafts/` (Jay edits + ratifies) |

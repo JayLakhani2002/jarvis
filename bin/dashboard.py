@@ -177,9 +177,10 @@ def main():
     health = health_series()
     radar = radar_series()
 
-    deadlines = [("THESIS SUBMIT", date(2026, 9, 30), "Sep 30 — priority #1 · protect 25h/wk"),
-                 ("BSS APPLICATION", date(2026, 9, 13), "Sep 13 — hard deadline"),
-                 ("AGORA BETA LIVE", date(2026, 10, 1), "Oct 01 — Wintersemester wave")]
+    import deadlines as DL  # bin/deadlines.py — the one place deadline dates live
+    deadlines = [("THESIS SUBMIT", DL.THESIS, f"{DL.THESIS:%b %d} — priority #1 · protect 25h/wk"),
+                 ("BSS APPLICATION", DL.BSS, f"{DL.BSS:%b %d} — hard deadline"),
+                 ("AGORA BETA LIVE", DL.AGORA, f"{DL.AGORA:%b %d} — Wintersemester wave")]
     tiles = ""
     for name, dl, note in deadlines:
         days = (dl - today).days

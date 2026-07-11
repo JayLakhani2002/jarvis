@@ -11,7 +11,7 @@ PROCEDURE:
 4. Write outputs:
    a. Full work → "06 Company/Shift Reports/<YYYY-MM-DD> Night Shift.md" (today's date; create the file).
    b. Anything requiring Jay's decision → append to the Pending section of "06 Company/(C) Decision Inbox.md" in its exact entry format.
-   c. Overwrite "06 Company/(C) Morning Briefing.md": ≤15 lines — what got done (with links to the shift report), what needs his decision, the single most important next action for his day, and the 4-number habit reminder.
+   c. Overwrite the BODY of "06 Company/(C) Morning Briefing.md" with the night's context: what got done (with links to today's Shift Report), what needs his decision (the reasoning behind each Decision Inbox item), and any backlog notes worth surfacing. Write prose/context here — do NOT hand-format the terse 07:00 push and do NOT add a "## ⚡ 07:00 Brief" section. As of v1.8 the 07:00 Telegram message is assembled DETERMINISTICALLY by `bin/briefing_build.py` at push time: it reads the deadline countdowns, the Backlog "## Now (one-track)" items (deadline-weighted), the Decision Inbox "## Pending" count, the habit/health log, the Market Radar, the email "## 📧 Inbox" section, and the watchdog section, then inserts its own self-pruning "## ⚡ 07:00 Brief (date)" block at the top of this note. Your job is to make those underlying sections accurate and well-reasoned; the builder turns them into the numbers-first brief. Leave the "## 🩺 Watchdog" and "## 📧 Inbox" sections alone (their own jobs own them).
    d. In the Backlog: tick consumed items and move them under Done with a link to the shift report.
 5. Style per operating-core.md: blunt, real numbers and dates, no filler, no fabricated citations — mark anything unverified as unverified.
 
