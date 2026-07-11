@@ -40,8 +40,28 @@ for job in $JOBS; do
 done
 
 if [ -n "$ISSUES" ]; then
-  printf '\n## 🩺 Watchdog (%s)%b\n' "$TODAY" "$ISSUES" >> "$BRIEFING"
-  osascript -e 'display notification "Automation issues found — see Morning Briefing" with title "🩺 Jarvis Watchdog"' 2>/dev/null
+  ENTRY=$(printf '\n## 🩺 Watchdog (%s)%b\n' "$TODAY" "$ISSUES")
 else
-  printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: syncs, snapshots, market radar, RAG index, all jobs loaded (night shift %s)\n' "$TODAY" "$([ -n "$NS_DISABLED" ] && echo 'paused by Jay' || echo 'ok')" >> "$BRIEFING"
+  ENTRY=$(printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: syncs, snapshots, market radar, RAG index, all jobs loaded (night shift %s)\n' "$TODAY" "$([ -n "$NS_DISABLED" ] && echo 'paused by Jay' || echo 'ok')")
 fi
+
+# Briefing is normally reset nightly by the 02:00 shift; while night shift is paused
+# nothing resets it, so prune our own prior section(s) before appending — otherwise
+# this grows one watchdog block per run forever. iCloud can also hold the file locked
+# mid-sync (EDEADLK) — retry the whole read-prune-write cycle with a materialize nudge.
+n=0
+until ENTRY_TEXT="$ENTRY" BRIEFING_PATH="$BRIEFING" /opt/homebrew/bin/python3 - 2>/tmp/jarvis-watchdog-write.err <<'PYEOF'
+import os, re
+path = os.environ["BRIEFING_PATH"]
+entry = os.environ["ENTRY_TEXT"]
+text = open(path).read()
+text = re.sub(r"\n## 🩺 Watchdog \(.*?\)\n(?:(?!\n## ).)*", "", text, flags=re.S)
+open(path, "w").write(text.rstrip("\n") + "\n" + entry + "\n")
+PYEOF
+do
+  n=$((n + 1))
+  [ "$n" -ge 5 ] && { echo "watchdog: gave up writing briefing after 5 tries: $(cat /tmp/jarvis-watchdog-write.err)" >&2; break; }
+  brctl download "$BRIEFING" 2>/dev/null
+  sleep 2
+done
+[ -n "$ISSUES" ] && osascript -e 'display notification "Automation issues found — see Morning Briefing" with title "🩺 Jarvis Watchdog"' 2>/dev/null

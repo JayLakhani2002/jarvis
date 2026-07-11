@@ -2,6 +2,15 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.4.1 — infra hardening, shipped 2026-07-09
+Full test pass over every v1.1–v1.4 feature (context7-verified Telegram Bot API + Ollama API usage — both current, no code changes needed) surfaced and fixed five real bugs, two of them silently breaking production for 46+ hours:
+- **`dailysync` + `vaultsnapshot` were both broken for 2 days, undetected** — launchd-spawned `/bin/bash` gets silently denied reading `.sh` files under `~/Documents/*` (no TCC prompt possible headless), and `watchdog` — the thing that should have caught this — hit the *same* bug, so its own alerts never fired. Fixed all 5 plain-bash jobs via new `bin/run_sh.py`: python (which has proven vault access) reads the script source and hands it to bash as an in-memory `-c` string instead of a file path bash would open itself.
+- **`vault_snapshot.sh` could hang indefinitely** on `git add -A` (iCloud "dataless" files take 2–10s each to materialize on first touch) and leave a stale `index.lock` that would permanently wedge every future run. Rewrote with a bounded timeout + self-healing lock cleanup on every invocation.
+- **Intermittent `OSError: Resource deadlock avoided`** on vault reads while Obsidian has a note open (iCloud file coordination) — was surfacing as a misleading `/brief` 404 ("no briefing yet" when it very much existed) and crashing `dashboard.py` mid-render. Both now retry with backoff.
+- **`watchdog` grew one duplicate briefing section per run, forever** — it's meant to be reset nightly by the 02:00 shift, but with night shift paused nothing resets it. Now prunes its own prior section before appending.
+- **Dashboard's Decision Inbox count was wrong** — it counted the `- [ ] Approve` line inside the entry-format *template* as a real pending decision. Now scoped to the actual `## Pending` section.
+- Backlog.md cleaned up: 4 shipped features (market radar, weekly draft, RAG, voice, dashboard) were never marked Done; the market-radar item was still listed as open future work.
+
 ## ✅ v1.4 — shipped 2026-07-08
 - **Jarvis dashboard** — `dashboard` job (every 30 min): one-screen HTML at `dashboard/index.html` — deadline countdowns (Thesis/BSS/Agora), 4-habit sparklines, Decision Inbox + Backlog counts, Agora market trend, automation health. Phone view via voiceserver `/dash?key=…`. Habit charts fill once Jay builds the "Log Health" iOS Shortcut
 

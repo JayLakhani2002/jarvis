@@ -19,6 +19,33 @@ PREAMBLE = (
     "decision, add it to '06 Company/(C) Decision Inbox.md' in its entry format and say so.\n\nJay's message: "
 )
 
+def read_resilient(path):
+    """iCloud can hold a vault file locked mid-sync (EDEADLK) for a few seconds —
+    retry briefly instead of surfacing a transient lock as an error."""
+    last = None
+    for _ in range(8):
+        try:
+            with open(path) as f:
+                return f.read()
+        except FileNotFoundError:
+            raise
+        except OSError as e:
+            last = e
+            time.sleep(1)
+    raise last
+
+def write_resilient(path, content):
+    last = None
+    for _ in range(8):
+        try:
+            with open(path, "w") as f:
+                f.write(content)
+            return
+        except OSError as e:
+            last = e
+            time.sleep(1)
+    raise last
+
 def conf():
     d = {}
     for line in open(CONF):
@@ -82,13 +109,13 @@ def handle(token, chat_id, text):
         if not item:
             return send(token, chat_id, "Usage: /task <what you want done>")
         stamp = datetime.date.today().isoformat()
-        content = open(BACKLOG).read()
+        content = read_resilient(BACKLOG)
         marker = "## Now (one-track)\n\n"
         content = content.replace(marker, f"{marker}- [ ] [via-telegram {stamp}] {item}\n", 1)
-        open(BACKLOG, "w").write(content)
+        write_resilient(BACKLOG, content)
         return send(token, chat_id, f"✅ Added to Backlog:\n“{item}”\nNight shift or a day session will pick it up.")
     if t.startswith("/brief"):
-        return send(token, chat_id, open(BRIEFING).read()[:3900])
+        return send(token, chat_id, read_resilient(BRIEFING)[:3900])
     if t.startswith("/status"):
         jobs = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
         expected = ["dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar","ragindex","voiceserver","dashboard"]

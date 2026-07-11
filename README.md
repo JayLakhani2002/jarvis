@@ -15,7 +15,7 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 | `weeklysync` | Sun 18:05 | `bin/weekly_brain_sync.sh` | Git activity + 7-day health digest → vault Quick Capture, then drafts the weekly review into `06 Company/Drafts/` (Jay edits + ratifies) |
 | `marketradar` | 01:30 daily | `bin/market_radar.py` | Scans arbeitnow.com for Berlin werkstudent postings → stats + trend table in `06 Company/(C) Market Radar.md` (fresh before the 02:00 shift) |
 | `voiceserver` | always on (KeepAlive) | `bin/voice_server.py` | LAN HTTP :8765 for Siri Shortcuts: `/ask` (RAG + claude, spoken-length answer), `/brief`, `/health`. Key auth from `config/voice.conf` (gitignored). Read-only by design |
-| `dashboard` | every 30 min + at load | `bin/dashboard.py` | One-screen HTML dashboard (habits, deadlines countdown, Decision Inbox, Agora market, job health) → `dashboard/index.html` (gitignored). View: open the file, or phone via `voiceserver` `/dash?key=…` |
+| `dashboard` | every 30 min + at load | `bin/dashboard.py` | One-screen JARVIS-HUD dashboard (habits, deadlines countdown, Decision Inbox, Agora market, job health) → `dashboard/index.html` (gitignored). View: open the file, or phone via `voiceserver` `/dash?key=…` |
 | `ragindex` | 20:45 daily | `bin/vault_rag.py index` | Vault RAG: embeds every note (nomic-embed-text via local Ollama) → `~/.jarvis-rag/` (local-only). Query: `vault_rag.py search/ask` or Telegram `/search` |
 
 ## Layout
@@ -34,6 +34,8 @@ install.sh  deploys launchd/*.plist → ~/Library/LaunchAgents and reloads them
 2. Edit a schedule → change the plist in `launchd/`, then run `./install.sh`.
 3. New job → add plist to `launchd/` + script to `bin/`, run `./install.sh`, and add it to the job list in `bin/watchdog.sh` and `bin/telegram_jarvis.py` (/status).
 4. Check health → Telegram: `/status`, or `launchctl list | grep jaysbrain` (exit code 0 = healthy).
+5. **New bash-script job? Route it through `bin/run_sh.py`, never call `/bin/bash script.sh` directly in a plist.** launchd-spawned `/bin/bash` gets silently denied ("Operation not permitted") reading `.sh` files under `~/Documents/*` — no TCC prompt is possible for a headless agent, so it just fails. Pattern (see any current plist for the exact form): `["/bin/bash", "-c", "exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/run_sh.py /Users/jay/Documents/Jarvis/bin/yourscript.sh"]`. Pure-python jobs don't need this — `bash -c "exec /opt/homebrew/bin/python3 script.py"` already works because bash never opens the script file itself.
+6. **Vault file I/O can hit a transient `OSError: [Errno 11] Resource deadlock avoided`** — iCloud/Obsidian briefly locks a note mid-sync. Read with retries (`read_resilient()` in `voice_server.py`, `read_lines_resilient()` in `dashboard.py`); on write, retry with a `brctl download` nudge between attempts (see `watchdog.sh`). Don't let one crash a whole job — vault I/O is never guaranteed instant.
 
 ## Related pieces outside this repo
 

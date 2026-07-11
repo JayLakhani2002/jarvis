@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key><string>com.jaysbrain.watchdog</string>
 	<key>ProgramArguments</key>
-	<array><string>/bin/bash</string><string>/Users/jay/Documents/Jarvis/bin/watchdog.sh</string></array>
+	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/run_sh.py /Users/jay/Documents/Jarvis/bin/watchdog.sh</string></array>
 	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>55</integer></dict>
 	
 	<key>EnvironmentVariables</key>

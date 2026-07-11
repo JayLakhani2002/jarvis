@@ -13,6 +13,7 @@ Endpoints (all require the shared key from config/voice.conf):
 import json
 import os
 import subprocess
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -26,6 +27,23 @@ for line in open(CONF):
     if line.startswith("VOICE_KEY="):
         KEY = line.split("=", 1)[1].strip()
 assert KEY, "VOICE_KEY missing in config/voice.conf"
+
+
+def read_resilient(path, binary=False):
+    """iCloud can hold a vault file locked mid-sync (EDEADLK) for a few seconds —
+    retry briefly instead of treating a transient lock as 'file doesn't exist'."""
+    mode = "rb" if binary else "r"
+    last = None
+    for _ in range(8):
+        try:
+            with open(path, mode) as f:
+                return f.read()
+        except FileNotFoundError:
+            raise
+        except OSError as e:
+            last = e
+            time.sleep(1)
+    raise last
 
 
 def answer(question):
@@ -62,16 +80,20 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, "ok")
         if url.path == "/brief":
             try:
-                text = open(BRIEFING).read()
-            except OSError:
+                text = read_resilient(BRIEFING)
+            except FileNotFoundError:
                 return self.reply(404, "no briefing yet")
+            except OSError as e:
+                return self.reply(503, f"briefing temporarily locked (iCloud sync?): {e}")
             return self.reply(200, text[:6000])
         if url.path == "/dash":
             dash = os.path.expanduser("~/Documents/Jarvis/dashboard/index.html")
             try:
-                body = open(dash, "rb").read()
-            except OSError:
+                body = read_resilient(dash, binary=True)
+            except FileNotFoundError:
                 return self.reply(404, "dashboard not generated yet")
+            except OSError as e:
+                return self.reply(503, f"dashboard temporarily locked (iCloud sync?): {e}")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
