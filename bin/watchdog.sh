@@ -36,7 +36,7 @@ fi
 # A crash-looping job still shows its label in `launchctl list` with PID "-" and its
 # last exit status, so the old label-only check silently missed two multi-day outages.
 # `launchctl list` columns are: PID <TAB> last-exit-status <TAB> label.
-JOBS="telegrambot dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar ragindex voiceserver dashboard"
+JOBS="telegrambot dailysync weeklysync vaultsnapshot briefingpush watchdog marketradar ragindex voiceserver dashboard emailtriage"
 [ -z "$NS_DISABLED" ] && JOBS="nightshift $JOBS"
 DAEMONS=" telegrambot voiceserver "   # KeepAlive jobs that must always be RUNNING (live PID)
 CRIT=""                               # ⛔ findings — also pushed straight to Telegram below

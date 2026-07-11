@@ -17,6 +17,7 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 | `voiceserver` | always on (KeepAlive) | `bin/voice_server.py` | LAN HTTP :8765 for Siri Shortcuts: `/ask` (RAG + claude, spoken-length answer), `/brief`, `/health`. Key auth from `config/voice.conf` (gitignored). Read-only by design |
 | `dashboard` | every 30 min + at load | `bin/dashboard.py` | One-screen JARVIS-HUD dashboard (habits, deadlines countdown, Decision Inbox, Agora market, job health) → `dashboard/index.html` (gitignored). View: open the file, or phone via `voiceserver` `/dash?key=…` |
 | `ragindex` | 20:45 daily | `bin/vault_rag.py index` | Vault RAG: embeds every note (nomic-embed-text via local Ollama) → `~/.jarvis-rag/` (local-only). Query: `vault_rag.py search/ask` or Telegram `/search` |
+| `emailtriage` | 06:40 daily | `bin/email_triage.py` | Reads Gmail inbox **read-only** over IMAP (BODY.PEEK), claude classifies needs-reply/FYI/noise → `## 📧 Inbox` section in the briefing + reply drafts in `06 Company/Drafts/` for ratification. **Dormant until `config/email.conf` exists** (setup recipe in vault Drafts). Never sends/marks-read/moves mail |
 
 ## Layout
 

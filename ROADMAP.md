@@ -2,6 +2,9 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.6 — email triage, shipped 2026-07-11
+- **Email triage agent** — `emailtriage` job, 06:40 daily: reads Jay's Gmail inbox **read-only** over IMAP (LOGIN / SELECT readonly / SEARCH / FETCH BODY.PEEK / LOGOUT only — never sends, marks read, or moves mail), claude classifies each message needs-reply/FYI/noise → self-pruning `## 📧 Inbox` section in the Morning Briefing + reply drafts into `06 Company/Drafts/` for Jay to approve and send himself. Stdlib-only (imaplib/email/ssl), zero new deps. **Dormant until `config/email.conf` exists** — 5-min app-password setup recipe waits in vault `06 Company/Drafts/Jarvis Email — Setup.md` (Jay's hands). Dormant exits 0 (watchdog quiet); configured-but-broken exits 1 (watchdog flags it).
+
 ## ✅ v1.5 — infra hardening 2, shipped 2026-07-11
 The Jul 9 reboot crash-looped all 10 launchd jobs for ~2 days with `EX_CONFIG` (exit 78): launchd's `posix_spawn` couldn't open their stdout/err files under the TCC-protected, iCloud-synced `~/Documents` (stale `com.apple.macl` xattr). Two fixes so the class can't recur or hide again:
 - **All logs moved out of `~/Documents` → `~/Library/Logs/Jarvis/`** — every plist (10 active + paused nightshift) and every app-level log path; `install.sh` creates the dir before bootstrapping. Outside TCC and iCloud, so posix_spawn can always open them: the EX_CONFIG poisoning class is eliminated at the root. Old logs stay archived under `~/Documents/Jarvis/logs`.
@@ -47,7 +50,7 @@ Full test pass over every v1.1–v1.4 feature (context7-verified Telegram Bot AP
 - ~~**Vault RAG**~~ ✅ shipped in v1.2
 - ~~**Voice round-trip**~~ ✅ Mac half shipped in v1.3 — awaiting Jay's 5-min iOS Shortcut build (recipe in vault Drafts)
 - ~~**Jarvis dashboard**~~ ✅ shipped in v1.4
-- **Email triage agent** — inbox summary into briefing, drafted replies for ratification
+- ~~**Email triage agent**~~ ✅ shipped in v1.6 — inbox summary into briefing, drafted replies for ratification
 - **CFO net-worth tracker** — bank CSV drop-folder → monthly GOALS numbers update
 
 ## 🌌 Tier 3 (December review)
