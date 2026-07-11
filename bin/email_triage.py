@@ -217,11 +217,13 @@ def build_digest(messages):
 
 def ask_claude(digest):
     """Headless claude call. Unlike the bot's ask_claude, the input here is UNTRUSTED email
-    content — so no edit permissions and a single turn (no tool loop): a hostile email can at
-    worst skew the summary text, never touch the vault."""
+    content — so the model gets NO tools at all: --tools "" strips built-ins, --strict-mcp-config
+    (with no config passed) loads no MCP servers, --max-turns 1 caps the loop. A hostile email
+    can at worst skew the summary text, never touch the vault or run anything."""
     try:
         p = subprocess.run(
-            [CLAUDE, "-p", PROMPT_HEADER + digest, "--max-turns", "1"],
+            [CLAUDE, "-p", PROMPT_HEADER + digest, "--max-turns", "1",
+             "--tools", "", "--strict-mcp-config"],
             cwd=VAULT, capture_output=True, text=True, timeout=300,
         )
         return p.stdout.strip()
