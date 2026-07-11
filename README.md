@@ -24,7 +24,7 @@ The infrastructure that runs Jay's AI company — the code side of the brain at 
 bin/        all executable scripts + night_shift_prompt.md (the shift's orders)
 launchd/    plist SOURCES (versioned) — edit here, never in ~/Library directly
 config/     telegram.conf (bot token + chat id) — gitignored, never committed
-logs/       every job's stdout/err + app logs — gitignored
+logs/       archived pre-v1.5 job logs (gitignored); live stdout/err + app logs now write to ~/Library/Logs/Jarvis (outside TCC/iCloud — see gotcha 7)
 install.sh  deploys launchd/*.plist → ~/Library/LaunchAgents and reloads them
 ```
 
@@ -36,6 +36,7 @@ install.sh  deploys launchd/*.plist → ~/Library/LaunchAgents and reloads them
 4. Check health → Telegram: `/status`, or `launchctl list | grep jaysbrain` (exit code 0 = healthy).
 5. **New bash-script job? Route it through `bin/run_sh.py`, never call `/bin/bash script.sh` directly in a plist.** launchd-spawned `/bin/bash` gets silently denied ("Operation not permitted") reading `.sh` files under `~/Documents/*` — no TCC prompt is possible for a headless agent, so it just fails. Pattern (see any current plist for the exact form): `["/bin/bash", "-c", "exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/run_sh.py /Users/jay/Documents/Jarvis/bin/yourscript.sh"]`. Pure-python jobs don't need this — `bash -c "exec /opt/homebrew/bin/python3 script.py"` already works because bash never opens the script file itself.
 6. **Vault file I/O can hit a transient `OSError: [Errno 11] Resource deadlock avoided`** — iCloud/Obsidian briefly locks a note mid-sync. Read with retries (`read_resilient()` in `voice_server.py`, `read_lines_resilient()` in `dashboard.py`); on write, retry with a `brctl download` nudge between attempts (see `watchdog.sh`). Don't let one crash a whole job — vault I/O is never guaranteed instant.
+7. **launchd log paths MUST stay outside `~/Documents`.** On reboot, launchd's `posix_spawn` opens each job's `StandardOut/ErrPath` *before* exec; if that file sits under the TCC-protected, iCloud-synced `~/Documents` and carries a stale `com.apple.macl` xattr, the open is denied and the job crash-loops. **Symptom: label still listed in `launchctl list`, but PID `-` and last exit status `78` (`EX_CONFIG`).** This poisoned all 10 jobs for ~2 days after the Jul 9 reboot (fresh files worked, which is why it looked intermittent). Fix (v1.5): every plist + app-level log path now points at `~/Library/Logs/Jarvis/` and `install.sh` creates it — never point a launchd log path back under `~/Documents`. The watchdog now catches this class directly (PID + exit-78 checks, plus a direct Telegram push that survives even when the briefing-push job is down).
 
 ## Related pieces outside this repo
 

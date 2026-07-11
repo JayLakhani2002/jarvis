@@ -8,7 +8,7 @@
 	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>45</integer></dict>
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/ragindex.out.log</string>
-	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/ragindex.err.log</string>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/ragindex.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/ragindex.err.log</string>
 </dict>
 </plist>

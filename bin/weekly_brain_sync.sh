@@ -66,7 +66,7 @@ DRAFTS="$VAULT/06 Company/Drafts"
 mkdir -p "$DRAFTS"
 DRAFT_FILE="$DRAFTS/Weekly Review Draft $DATE.md"
 CLAUDE_BIN="$(command -v claude || echo "$HOME/.local/bin/claude")"
-LOG="$HOME/Documents/Jarvis/logs/weekly_review_draft.log"
+LOG="$HOME/Library/Logs/Jarvis/weekly_review_draft.log"  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
 if [ -x "$CLAUDE_BIN" ]; then
   (cd "$VAULT" && "$CLAUDE_BIN" -p "Draft Jay's weekly review for the week ending $DATE into the file '$DRAFT_FILE'. DRAFT ONLY — Jay ratifies; never send or delete anything. Sources: this week's section of '$CAPTURE' (git activity + health summary just appended), '01 Journals' entries from the last 7 days, 'GOALS.md', and '06 Company/(C) Morning Briefing.md'. The draft must contain: (1) the 4 habit numbers — avg sleep, clean days, gym sessions, thesis hours — with a one-line verdict each vs target; (2) git/shipping activity per project; (3) calendar/plan adherence: what was planned vs what actually happened, and the biggest drift; (4) one-track check: did the week serve Thesis → BSS Sept 13 → Agora Oct beta; (5) 3 proposed priorities for next week. Start the file with '*DRAFT by Jarvis — edit then move into your weekly review. Part of [[🧠 HOME]]*'. Where a number is unknown, write '?? (fill in)' rather than guessing." \
     --permission-mode acceptEdits --max-turns 30) >> "$LOG" 2>&1

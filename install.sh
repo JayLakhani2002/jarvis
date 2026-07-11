@@ -4,6 +4,10 @@
 set -e
 P="$HOME/Documents/Jarvis"
 LA="$HOME/Library/LaunchAgents"
+# Logs MUST live outside ~/Documents: on reboot launchd's posix_spawn cannot open
+# stdout/err files under the TCC-protected, iCloud-synced ~/Documents (stale com.apple.macl
+# xattr) → every job crash-loops with EX_CONFIG (78). Create the dir before bootstrapping.
+mkdir -p "$HOME/Library/Logs/Jarvis"
 # jobs paused by Jay live in launchd/disabled/ — unload if present, never install
 for off in "$P"/launchd/disabled/*.plist; do
   [ -e "$off" ] || continue

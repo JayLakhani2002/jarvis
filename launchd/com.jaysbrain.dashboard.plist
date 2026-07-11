@@ -9,7 +9,7 @@
 	<key>RunAtLoad</key><true/>
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/dashboard.out.log</string>
-	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/dashboard.err.log</string>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/dashboard.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/dashboard.err.log</string>
 </dict>
 </plist>

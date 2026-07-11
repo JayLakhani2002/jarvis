@@ -9,7 +9,7 @@
 	
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/watchdog.out.log</string>
-	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/watchdog.err.log</string>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/watchdog.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/watchdog.err.log</string>
 </dict>
 </plist>

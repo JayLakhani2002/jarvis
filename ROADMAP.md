@@ -2,6 +2,11 @@
 
 What's next, in order. Operational task queue = the vault's `06 Company/(C) Backlog.md` (night shift eats from there); this file is the feature-level plan. Founder (Jay) ratifies scope changes.
 
+## ✅ v1.5 — infra hardening 2, shipped 2026-07-11
+The Jul 9 reboot crash-looped all 10 launchd jobs for ~2 days with `EX_CONFIG` (exit 78): launchd's `posix_spawn` couldn't open their stdout/err files under the TCC-protected, iCloud-synced `~/Documents` (stale `com.apple.macl` xattr). Two fixes so the class can't recur or hide again:
+- **All logs moved out of `~/Documents` → `~/Library/Logs/Jarvis/`** — every plist (10 active + paused nightshift) and every app-level log path; `install.sh` creates the dir before bootstrapping. Outside TCC and iCloud, so posix_spawn can always open them: the EX_CONFIG poisoning class is eliminated at the root. Old logs stay archived under `~/Documents/Jarvis/logs`.
+- **Watchdog now checks reality, not labels.** It parses `launchctl list` PID/exit-status columns: daemons (telegrambot, voiceserver) with PID `-` and any job exiting 78 are CRITICAL, other persistent non-zero exits are warnings, signal deaths ignored. Any CRITICAL is pushed straight to Telegram via the Bot API — a channel that survives even when the briefing-push job is itself down (the reason both past outages went unseen).
+
 ## ✅ v1.4.1 — infra hardening, shipped 2026-07-09
 Full test pass over every v1.1–v1.4 feature (context7-verified Telegram Bot API + Ollama API usage — both current, no code changes needed) surfaced and fixed five real bugs, two of them silently breaking production for 46+ hours:
 - **`dailysync` + `vaultsnapshot` were both broken for 2 days, undetected** — launchd-spawned `/bin/bash` gets silently denied reading `.sh` files under `~/Documents/*` (no TCC prompt possible headless), and `watchdog` — the thing that should have caught this — hit the *same* bug, so its own alerts never fired. Fixed all 5 plain-bash jobs via new `bin/run_sh.py`: python (which has proven vault access) reads the script source and hands it to bash as an in-memory `-c` string instead of a file path bash would open itself.

@@ -9,7 +9,7 @@
 	
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/telegrambot.out.log</string>
-	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/telegrambot.err.log</string>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/telegrambot.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/telegrambot.err.log</string>
 </dict>
 </plist>

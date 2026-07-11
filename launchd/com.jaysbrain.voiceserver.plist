@@ -8,7 +8,7 @@
 	<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
-	<key>StandardOutPath</key><string>/Users/jay/Documents/Jarvis/logs/voiceserver.out.log</string>
-	<key>StandardErrorPath</key><string>/Users/jay/Documents/Jarvis/logs/voiceserver.err.log</string>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/voiceserver.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/voiceserver.err.log</string>
 </dict>
 </plist>

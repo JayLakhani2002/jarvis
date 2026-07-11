@@ -7,7 +7,7 @@ import json, os, subprocess, time, urllib.request, urllib.parse, datetime
 CONF = os.path.expanduser("~/Documents/Jarvis/config/telegram.conf")
 VAULT = os.path.expanduser("~/Documents/J's AI Brain")
 CLAUDE = os.path.expanduser("~/.local/bin/claude")
-LOG = os.path.expanduser("~/Documents/Jarvis/logs/telegram_jarvis.log")
+LOG = os.path.expanduser("~/Library/Logs/Jarvis/telegram_jarvis.log")  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
 BACKLOG = os.path.join(VAULT, "06 Company", "(C) Backlog.md")
 BRIEFING = os.path.join(VAULT, "06 Company", "(C) Morning Briefing.md")
 

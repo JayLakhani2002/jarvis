@@ -1,7 +1,7 @@
 #!/bin/bash
 # Night shift — runs the company's 02:00 unattended session (draft-only).
 VAULT="$HOME/Documents/J's AI Brain"
-LOG="$HOME/Documents/Jarvis/logs/night_shift.log"
+LOG="$HOME/Library/Logs/Jarvis/night_shift.log"  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
 CLAUDE_BIN="$(command -v claude || echo "$HOME/.local/bin/claude")"
 
 cd "$VAULT" || exit 1
