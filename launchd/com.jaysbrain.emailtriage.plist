@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key><string>com.jaysbrain.emailtriage</string>
 	<key>ProgramArguments</key>
-	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/email_triage.py</string></array>
+	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/email_triage.py</string></array>
 	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>40</integer></dict>
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>

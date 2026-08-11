@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>&lt;jarvis-orb&gt; — usage</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  body { margin:0; background: radial-gradient(ellipse 120% 80% at 50% 0%, #14103a 0%, #0a0820 42%, #05060f 100%); color:#e8e9f5; font-family:'Space Grotesk',system-ui,sans-serif; min-height:100vh; }
+  .wrap { max-width:900px; margin:0 auto; padding:56px 32px 80px; display:flex; flex-direction:column; gap:44px; }
+  .eyebrow { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:#7c83b8; }
+  h1 { margin:0; font-size:34px; letter-spacing:-.02em; }
+  .row { display:flex; gap:44px; align-items:flex-end; flex-wrap:wrap; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .cap { font-family:'JetBrains Mono',monospace; font-size:11px; color:#6b7299; }
+  pre { margin:0; padding:20px 22px; border:1px solid rgba(148,163,255,.16); border-radius:14px; background:rgba(12,10,32,.6); overflow-x:auto;
+        font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.7; color:#b8c0e8; }
+  .k { color:#8fd6c0; }
+  a { color:#8fd6c0; text-decoration:none; }
+  a:hover { color:#e8d8b8; }
+  .states { display:flex; gap:36px; flex-wrap:wrap; align-items:flex-end; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="eyebrow">Drop-in web component</div>
+    <h1>&lt;jarvis-orb&gt;</h1>
+    <div style="color:#8b91bd;font-size:14px;max-width:60ch">One file, no dependencies, transparent background. It fills whatever box you put it in and cross-fades through five palettes on its own.</div>
+  </div>
+
+  <div class="row" style="justify-content:center">
+    <div class="col"><div style="width:360px"><jarvis-orb state="idle"></jarvis-orb></div><div class="cap">auto-cycling · idle</div></div>
+  </div>
+
+  <pre>&lt;script src="jarvis-orb.js"&gt;&lt;/script&gt;
+
+&lt;div style="width:96px"&gt;
+  &lt;jarvis-orb <span class="k">state</span>="idle"&gt;&lt;/jarvis-orb&gt;
+&lt;/div&gt;
+
+<span style="color:#6b7299">// drive it from your app</span>
+orb.<span class="k">state</span> = <span style="color:#e8d8b8">'listening'</span>;   <span style="color:#6b7299">// idle | listening | thinking | speaking</span></pre>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="eyebrow">States</div>
+    <div class="states">
+      <div class="col"><div style="width:120px"><jarvis-orb state="idle" palette="patina" auto-cycle="false"></jarvis-orb></div><div class="cap">idle</div></div>
+      <div class="col"><div style="width:120px"><jarvis-orb state="listening" palette="biolum" auto-cycle="false"></jarvis-orb></div><div class="cap">listening</div></div>
+      <div class="col"><div style="width:120px"><jarvis-orb state="thinking" palette="kiln" auto-cycle="false"></jarvis-orb></div><div class="cap">thinking</div></div>
+      <div class="col"><div style="width:120px"><jarvis-orb state="speaking" palette="uvlab" auto-cycle="false"></jarvis-orb></div><div class="cap">speaking</div></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="eyebrow">Any size</div>
+    <div class="row">
+      <div class="col"><div style="width:40px"><jarvis-orb></jarvis-orb></div><div class="cap">40</div></div>
+      <div class="col"><div style="width:64px"><jarvis-orb></jarvis-orb></div><div class="cap">64</div></div>
+      <div class="col"><div style="width:120px"><jarvis-orb></jarvis-orb></div><div class="cap">120</div></div>
+      <div class="col"><div style="width:200px"><jarvis-orb></jarvis-orb></div><div class="cap">200</div></div>
+    </div>
+  </div>
+
+  <pre><span class="k">state</span>="idle|listening|thinking|speaking"   animation preset
+<span class="k">palette</span>="patina|biolum|kiln|uvlab|frost"   colour set
+<span class="k">auto-cycle</span>="true|false"                    cross-fade through all palettes  (default true)
+<span class="k">cycle-seconds</span>="7"                          seconds per palette
+<span class="k">speed</span>="1"                                  motion multiplier (0.3 – 3)
+<span class="k">trails</span>="true|false"                        comet trails behind electrons
+<span class="k">core</span>/<span class="k">mid</span>/<span class="k">hot</span>="#hex"                       your own colours (disables cycling)</pre>
+</div>
+<script src="jarvis-orb.js"></script>
+</body>
+</html>

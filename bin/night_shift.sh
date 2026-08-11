@@ -8,7 +8,7 @@ cd "$VAULT" || exit 1
 {
   echo ""
   echo "===== Night shift start: $(date) ====="
-  "$CLAUDE_BIN" -p "$(cat "$HOME/Documents/Jarvis/bin/night_shift_prompt.md")" \
+  "$CLAUDE_BIN" -p "$(cat "$HOME/Documents/Projects/Jarvis/bin/night_shift_prompt.md")" \
     --permission-mode acceptEdits \
     --max-turns 50
   echo "===== Night shift end: $(date) (exit $?) ====="

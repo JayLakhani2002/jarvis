@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VAULT = os.path.expanduser("~/Documents/J's AI Brain")
 BRIEFING = os.path.join(VAULT, "06 Company", "(C) Morning Briefing.md")
-CONF = os.path.expanduser("~/Documents/Jarvis/config/voice.conf")
+CONF = os.path.expanduser("~/Documents/Projects/Jarvis/config/voice.conf")
 PORT = 8765
 
 KEY = ""
@@ -48,7 +48,7 @@ def read_resilient(path, binary=False):
 
 def answer(question):
     """RAG-grounded, speech-length answer."""
-    rag = os.path.expanduser("~/Documents/Jarvis/bin/vault_rag.py")
+    rag = os.path.expanduser("~/Documents/Projects/Jarvis/bin/vault_rag.py")
     hits = subprocess.run(["/opt/homebrew/bin/python3", rag, "search", question, "6"],
                           capture_output=True, text=True, timeout=60).stdout
     claude = subprocess.run(["bash", "-lc", "command -v claude"], capture_output=True, text=True).stdout.strip() \
@@ -87,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(503, f"briefing temporarily locked (iCloud sync?): {e}")
             return self.reply(200, text[:6000])
         if url.path == "/dash":
-            dash = os.path.expanduser("~/Documents/Jarvis/dashboard/index.html")
+            dash = os.path.expanduser("~/Documents/Projects/Jarvis/dashboard/index.html")
             try:
                 body = read_resilient(dash, binary=True)
             except FileNotFoundError:

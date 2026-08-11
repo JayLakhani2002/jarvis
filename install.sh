@@ -2,7 +2,7 @@
 # Deploys all Jarvis launchd jobs from launchd/ to ~/Library/LaunchAgents and (re)loads them.
 # Run after ANY change to a plist or after moving the project. Idempotent.
 set -e
-P="$HOME/Documents/Jarvis"
+P="$HOME/Documents/Projects/Jarvis"
 LA="$HOME/Library/LaunchAgents"
 # Logs MUST live outside ~/Documents: on reboot launchd's posix_spawn cannot open
 # stdout/err files under the TCC-protected, iCloud-synced ~/Documents (stale com.apple.macl

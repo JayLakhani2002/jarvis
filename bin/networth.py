@@ -7,12 +7,12 @@ outside its own markers, and writes nothing to GOALS until the first successful 
 stays out of logs (counts + derived balances only, never row contents). Stdlib only."""
 import csv, json, datetime, os, re, shutil, sys
 
-FIN = os.path.expanduser("~/Documents/Jarvis/finance")
+FIN = os.path.expanduser("~/Documents/Projects/Jarvis/finance")
 INBOX = os.path.join(FIN, "inbox")
 PROCESSED = os.path.join(FIN, "processed")
 FAILED = os.path.join(FIN, "failed")
 STATE = os.path.join(FIN, "state.json")
-BANKS = os.path.expanduser("~/Documents/Jarvis/config/banks.json")
+BANKS = os.path.expanduser("~/Documents/Projects/Jarvis/config/banks.json")
 GOALS = os.path.expanduser("~/Documents/J's AI Brain/GOALS.md")
 LOG = os.path.expanduser("~/Library/Logs/Jarvis/networth.log")  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
 

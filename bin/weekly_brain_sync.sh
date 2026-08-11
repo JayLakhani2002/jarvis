@@ -14,7 +14,8 @@ fi
 
 # --- Git activity across tracked repos (last 7 days) ---
 for repo in "Agora Jobs" "LifePilot" "DeutschMate-main" "Nilimpa Startup /Bakery Expense APK"; do
-  REPO_PATH="$HOME/Documents/$repo"
+  REPO_PATH="$HOME/Documents/Projects/$repo"
+  [ -d "$REPO_PATH/.git" ] || REPO_PATH="$HOME/Documents/$repo"
   if [ -d "$REPO_PATH/.git" ]; then
     COMMITS=$(cd "$REPO_PATH" && git log --since="7 days ago" --oneline 2>/dev/null)
     if [ -n "$COMMITS" ]; then

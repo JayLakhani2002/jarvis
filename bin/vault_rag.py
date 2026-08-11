@@ -34,6 +34,24 @@ def embed(texts):
         return json.load(r)["embeddings"]
 
 
+# --- resilient vault I/O: iCloud can hold a vault file locked mid-sync (EDEADLK) for a few
+# seconds — retry briefly instead of surfacing a transient lock as an error. (copied from
+# email_triage.py so this job has no cross-file import dependency.)
+def read_resilient(path):
+    last = None
+    for _ in range(8):
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as f:
+                return f.read()
+        except FileNotFoundError:
+            raise
+        except OSError as e:
+            last = e
+            import time
+            time.sleep(1)
+    raise last
+
+
 def vault_files():
     for root, dirs, files in os.walk(VAULT):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
@@ -44,7 +62,7 @@ def vault_files():
 
 def chunk_file(path):
     """Split a note into ~CHUNK_CHARS pieces on heading/paragraph boundaries."""
-    text = open(path, encoding="utf-8", errors="ignore").read()
+    text = read_resilient(path)
     blocks = re.split(r"\n(?=#{1,6} )|\n\n+", text)
     chunks, cur = [], ""
     for b in blocks:

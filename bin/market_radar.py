@@ -21,6 +21,24 @@ PAGES = 15  # ~1500 most recent postings
 WS_RE = re.compile(r"werkstudent|working student|work(?:ing)?[- ]student", re.I)
 
 
+# --- resilient vault I/O: iCloud can hold a vault file locked mid-sync (EDEADLK) for a few
+# seconds — retry briefly instead of surfacing a transient lock as an error. (copied from
+# email_triage.py so this job has no cross-file import dependency.)
+def read_resilient(path):
+    last = None
+    for _ in range(8):
+        try:
+            with open(path) as f:
+                return f.read()
+        except FileNotFoundError:
+            raise
+        except OSError as e:
+            last = e
+            import time
+            time.sleep(1)
+    raise last
+
+
 def fetch_jobs():
     jobs = []
     for page in range(1, PAGES + 1):
@@ -60,7 +78,7 @@ def main():
     # keep a rolling history table; rewrite header block, append today's row once
     history = []
     if os.path.exists(NOTE):
-        for line in open(NOTE):
+        for line in read_resilient(NOTE).splitlines():
             if re.match(r"^\| \d{4}-\d{2}-\d{2} \|", line) and not line.startswith(f"| {today} "):
                 history.append(line.rstrip("\n"))
     history.append(stats_line)

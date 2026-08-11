@@ -4,7 +4,7 @@ Long-polling daemon: only answers Jay's own chat_id; everything else is ignored.
 Zero external dependencies (stdlib only)."""
 import json, os, subprocess, time, urllib.request, urllib.parse, datetime
 
-CONF = os.path.expanduser("~/Documents/Jarvis/config/telegram.conf")
+CONF = os.path.expanduser("~/Documents/Projects/Jarvis/config/telegram.conf")
 VAULT = os.path.expanduser("~/Documents/J's AI Brain")
 CLAUDE = os.path.expanduser("~/.local/bin/claude")
 LOG = os.path.expanduser("~/Library/Logs/Jarvis/telegram_jarvis.log")  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
@@ -101,7 +101,7 @@ def handle(token, chat_id, text):
         if not q:
             return send(token, chat_id, "Usage: /search <query>")
         send(token, chat_id, "🔎 searching the brain…")
-        p = subprocess.run(["/opt/homebrew/bin/python3", os.path.expanduser("~/Documents/Jarvis/bin/vault_rag.py"), "search", q, "4"],
+        p = subprocess.run(["/opt/homebrew/bin/python3", os.path.expanduser("~/Documents/Projects/Jarvis/bin/vault_rag.py"), "search", q, "4"],
                            capture_output=True, text=True, timeout=120)
         return send(token, chat_id, (p.stdout.strip() or p.stderr.strip())[:3900])
     if t.startswith("/task"):
@@ -119,7 +119,7 @@ def handle(token, chat_id, text):
     if t.startswith("/status"):
         jobs = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
         expected = ["dailysync","weeklysync","vaultsnapshot","watchdog","briefingpush","telegrambot","marketradar","ragindex","voiceserver","dashboard","emailtriage","networth"]
-        if not os.path.exists(os.path.expanduser("~/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist")):
+        if not os.path.exists(os.path.expanduser("~/Documents/Projects/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist")):
             expected.append("nightshift")
         loaded = [j for j in expected if f"com.jaysbrain.{j}" in jobs]
         note = "" if "nightshift" in expected else " (night shift paused by Jay)"

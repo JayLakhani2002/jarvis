@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key><string>com.jaysbrain.telegrambot</string>
 	<key>ProgramArguments</key>
-	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/telegram_jarvis.py</string></array>
+	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/telegram_jarvis.py</string></array>
 	<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 	
 	<key>EnvironmentVariables</key>

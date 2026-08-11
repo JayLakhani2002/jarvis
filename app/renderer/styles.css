@@ -1,0 +1,269 @@
+/* Jarvis command center — Dark Mode (OLED).
+   Palette matches the existing dashboard.py HUD so both surfaces read as one
+   system. System font stacks only: CSP blocks external origins and the HUD
+   decision (DECISIONS 2026-07-08) rejected CDN fonts — must render offline. */
+
+:root {
+  --bg: #020617;          /* OLED base */
+  --panel: #0f172a;
+  --raised: #1e293b;
+  --line: #1e293b;
+  --text: #f8fafc;
+  --dim: #94a3b8;
+  --muted: #64748b;
+  --cyan: #22d3ee;
+  --amber: #f59e0b;
+  --green: #22c55e;
+  --red: #f43f5e;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --fast: 180ms;
+
+  --level: 0;             /* live mic peak 0..1, set from JS */
+
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.sprite { position: absolute; width: 0; height: 0; }
+.drag { height: 30px; flex: 0 0 auto; -webkit-app-region: drag; }
+.shell { flex: 1; display: flex; min-height: 0; }
+
+/* every icon inherits currentColor, one consistent 24-grid */
+svg use, .nav-item svg, .icon-btn svg, .row svg {
+  stroke: currentColor; fill: none;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+.nav-item svg, .icon-btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.row svg { width: 15px; height: 15px; flex: 0 0 auto; }
+
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------- nav ---------------- */
+.nav {
+  width: 216px; flex: 0 0 auto;
+  border-right: 1px solid var(--line);
+  padding: 8px 10px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.04), transparent 40%);
+}
+.brand {
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.3em; color: var(--cyan);
+  padding: 8px 10px 18px;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);  /* minimal glow */
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  appearance: none; background: none; border: 0;
+  color: var(--dim); text-align: left;
+  padding: 9px 10px; border-radius: 8px;
+  font-size: 13px; cursor: pointer;
+  min-height: 36px;
+  transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out);
+}
+.nav-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+.nav-item.active {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--cyan);
+  box-shadow: inset 2px 0 0 var(--cyan);
+}
+.nav-item:disabled { opacity: 0.3; cursor: default; }
+
+.main { flex: 1; min-width: 0; display: flex; }
+.view { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.view[hidden] { display: none; }
+
+/* ---------------- orb: the one continuously animated element ----------------
+   UX rule: animate 1-2 key elements per view maximum. This is the one. */
+.orb-wrap { display: flex; flex-direction: column; align-items: center; padding: 18px 0 10px; }
+.orb {
+  position: relative;
+  width: 104px; height: 104px;
+  display: grid; place-items: center;
+}
+.rings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring { fill: none; stroke-width: 1; transform-origin: 60px 60px; }
+.ring-a { stroke: rgba(34, 211, 238, 0.55); stroke-dasharray: 60 260; animation: spin 14s linear infinite; }
+.ring-b { stroke: rgba(34, 211, 238, 0.28); stroke-dasharray: 24 140; animation: spin 9s linear infinite reverse; }
+.ring-c { stroke: rgba(245, 158, 11, 0.3); stroke-dasharray: 12 340; animation: spin 22s linear infinite; }
+
+.orb-glow {
+  position: absolute; inset: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #67e8f9, #0891b2 46%, #0c1a3a 76%);
+  box-shadow: 0 0 26px rgba(34, 211, 238, 0.34);
+  /* scales with real mic level, not a fake loop */
+  transform: scale(calc(1 + var(--level) * 0.16));
+  transition: transform 90ms linear, box-shadow 260ms var(--ease-out);
+}
+.orb-core {
+  position: relative;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  filter: blur(7px);
+  opacity: calc(0.55 + var(--level) * 0.45);
+}
+.orb-label {
+  margin-top: 9px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--muted);
+  transition: color var(--fast) var(--ease-out);
+}
+
+.orb.thinking .orb-glow { animation: breathe 1.9s var(--ease-out) infinite; }
+.orb.thinking .ring-a { animation-duration: 3.5s; }
+.orb.thinking ~ .orb-label, .orb.thinking + .orb-label { color: var(--cyan); }
+.orb.listening .orb-glow {
+  background: radial-gradient(circle at 34% 30%, #fde68a, #f59e0b 46%, #3a2708 76%);
+  box-shadow: 0 0 calc(26px + var(--level) * 40px) rgba(245, 158, 11, 0.55);
+}
+.orb.listening + .orb-label { color: var(--amber); }
+.orb.speaking .orb-glow {
+  background: radial-gradient(circle at 34% 30%, #86efac, #22c55e 46%, #052e16 76%);
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.45);
+}
+.orb.speaking + .orb-label { color: var(--green); }
+.orb.error .orb-glow { box-shadow: 0 0 34px rgba(244, 63, 94, 0.6); }
+.orb.error + .orb-label { color: var(--red); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(34, 211, 238, 0.3); }
+  50% { transform: scale(1.07); box-shadow: 0 0 46px rgba(34, 211, 238, 0.6); }
+}
+
+/* ---------------- thread ---------------- */
+.thread { flex: 1; overflow-y: auto; padding: 12px 26px; scroll-behavior: smooth; }
+.empty { color: var(--muted); text-align: center; margin-top: 8vh; font-size: 13px; }
+
+.msg {
+  max-width: 68ch;                 /* line-length: 65-75ch */
+  margin: 0 auto 14px;
+  white-space: pre-wrap; word-wrap: break-word;
+  animation: rise 260ms var(--ease-out) both;   /* entering: ease-out, once */
+}
+.msg.you {
+  color: var(--bg); background: var(--cyan);
+  padding: 8px 13px; border-radius: 12px 12px 4px 12px;
+  width: fit-content; margin-left: auto; margin-right: 0;
+  font-weight: 500;
+}
+.msg.jarvis { color: var(--text); }
+.msg.err { color: var(--red); }
+.msg.note { color: var(--muted); font-size: 12px; font-style: italic; }
+
+.tool {
+  max-width: 68ch; margin: 0 auto 8px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--amber);
+  background: rgba(245, 158, 11, 0.07);
+  color: var(--dim);
+  font: 11px/1.5 var(--mono);
+  border-radius: 0 6px 6px 0;
+  animation: rise 200ms var(--ease-out) both;
+}
+.tool span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------------- composer ---------------- */
+.composer {
+  display: flex; gap: 8px; align-items: center;
+  padding: 12px 26px 16px; border-top: 1px solid var(--line);
+}
+#input {
+  flex: 1; min-width: 0;
+  background: var(--panel); border: 1px solid var(--line);
+  color: var(--text); border-radius: 10px;
+  padding: 11px 14px; font-size: 15px; outline: none;
+  transition: border-color var(--fast) var(--ease-out);
+}
+#input::placeholder { color: var(--muted); }
+#input:focus { border-color: var(--cyan); }
+
+.icon-btn {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;          /* 44x44 touch target */
+  flex: 0 0 auto;
+  background: var(--panel); border: 1px solid var(--line);
+  color: var(--dim); border-radius: 10px; cursor: pointer;
+  transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out),
+              border-color var(--fast) var(--ease-out);
+}
+.icon-btn:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+.icon-btn:disabled { opacity: 0.4; cursor: default; }
+.icon-btn.primary { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+.icon-btn.primary:hover:not(:disabled) { background: #67e8f9; color: var(--bg); }
+.icon-btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
+#mic.recording {
+  background: var(--amber); color: var(--bg); border-color: var(--amber);
+  box-shadow: 0 0 0 calc(3px + var(--level) * 8px) rgba(245, 158, 11, 0.18);
+}
+
+/* ---------------- vault ---------------- */
+.vault { flex: 1; display: flex; min-height: 0; }
+.tree { width: 300px; flex: 0 0 auto; overflow-y: auto; border-right: 1px solid var(--line); padding: 10px; }
+.row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px; border-radius: 7px; cursor: pointer;
+  color: var(--dim); font-size: 13px; min-height: 34px;
+  transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out);
+}
+.row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+.row.dir { color: var(--text); }
+.note {
+  flex: 1; margin: 0; padding: 20px 26px; overflow: auto;
+  font: 12px/1.7 var(--mono); color: var(--text); white-space: pre-wrap;
+}
+
+/* ---------------- status strip ---------------- */
+.status {
+  flex: 0 0 auto; height: 27px;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 14px; border-top: 1px solid var(--line);
+  background: var(--panel);
+  font: 11px/1 var(--mono); color: var(--muted);
+}
+.spacer { flex: 1; }
+.stat.ok { color: var(--green); }
+.stat.warn { color: var(--amber); }
+.stat.crit { color: var(--red); }
+.stat.live { color: var(--cyan); }
+
+/* ---------------- reduced motion ----------------
+   Kill every loop and transition; state stays legible via color + label. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .orb-glow { transform: none !important; }
+}
+
+/* ---------------- narrow window ---------------- */
+@media (max-width: 900px) {
+  .nav { width: 60px; }
+  .nav-item { justify-content: center; gap: 0; font-size: 0; }
+  .brand { font-size: 0; padding: 8px 0 14px; }
+  .tree { width: 200px; }
+}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src blob:; connect-src 'none';" />
+  <title>Jarvis</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- icon sprite: Lucide geometry, 24x24 stroke. No emoji as icons. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-command" viewBox="0 0 24 24"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></symbol>
+      <symbol id="i-vault" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+      <symbol id="i-tasks" viewBox="0 0 24 24"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+      <symbol id="i-schedule" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></symbol>
+      <symbol id="i-tools" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+      <symbol id="i-pipelines" viewBox="0 0 24 24"><path d="M6 3v15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="21" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+      <symbol id="i-content" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18"/><path d="M17 3v18"/><path d="M2 12h20"/></symbol>
+      <symbol id="i-agents" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+      <symbol id="i-business" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+      <symbol id="i-speak" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="drag"></div>
+
+  <div class="shell">
+    <nav class="nav" aria-label="Sections">
+      <div class="brand">JARVIS</div>
+      <button class="nav-item active" data-view="command"><svg><use href="#i-command"/></svg>Command Center</button>
+      <button class="nav-item" data-view="vault"><svg><use href="#i-vault"/></svg>Knowledge Vault</button>
+      <button class="nav-item" disabled title="Phase 3"><svg><use href="#i-tasks"/></svg>Tasks</button>
+      <button class="nav-item" disabled title="Phase 3"><svg><use href="#i-schedule"/></svg>Schedules</button>
+      <button class="nav-item" disabled title="Phase 6"><svg><use href="#i-tools"/></svg>Tools</button>
+      <button class="nav-item" disabled title="Phase 5"><svg><use href="#i-pipelines"/></svg>Pipelines</button>
+      <button class="nav-item" disabled title="Phase 7"><svg><use href="#i-content"/></svg>Content</button>
+      <button class="nav-item" disabled title="Phase 4"><svg><use href="#i-agents"/></svg>Agents</button>
+      <button class="nav-item" disabled title="Phase 4"><svg><use href="#i-business"/></svg>Businesses</button>
+    </nav>
+
+    <main class="main">
+      <section class="view" id="view-command">
+        <div class="orb-wrap">
+          <div class="orb" id="orb" role="img" aria-label="Jarvis status">
+            <svg class="rings" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="ring ring-a" cx="60" cy="60" r="52" />
+              <circle class="ring ring-b" cx="60" cy="60" r="44" />
+              <circle class="ring ring-c" cx="60" cy="60" r="58" />
+            </svg>
+            <span class="orb-glow"></span>
+            <span class="orb-core"></span>
+          </div>
+          <div class="orb-label" id="orb-label">ready</div>
+        </div>
+
+        <div class="thread" id="thread" role="log" aria-live="polite">
+          <div class="empty">Ask Jarvis anything. It runs through Claude Code with your vault in reach.</div>
+        </div>
+
+        <form class="composer" id="composer">
+          <button type="button" id="mic" class="icon-btn" aria-label="Hold to talk" title="Hold to talk (⌥Space)">
+            <svg><use href="#i-mic"/></svg>
+          </button>
+          <input id="input" type="text" autocomplete="off" aria-label="Message Jarvis" placeholder="Talk to Jarvis…" />
+          <button type="submit" id="send" class="icon-btn primary" aria-label="Send"><svg><use href="#i-send"/></svg></button>
+          <button type="button" id="stop" class="icon-btn danger" aria-label="Stop" hidden><svg><use href="#i-stop"/></svg></button>
+        </form>
+      </section>
+
+      <section class="view" id="view-vault" hidden>
+        <div class="vault">
+          <div class="tree" id="tree" aria-label="Vault files"></div>
+          <pre class="note" id="note">Select a note.</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="status">
+    <span class="stat" id="stat-jobs">jobs …</span>
+    <span class="stat" id="stat-brief">briefing …</span>
+    <span class="stat" id="stat-session">session —</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat-voice">voice —</span>
+    <span class="stat" id="stat-state">idle</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

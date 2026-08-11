@@ -8,7 +8,7 @@ Zero external dependencies (stdlib only)."""
 import os, sys, ssl, json, re, html, datetime, subprocess
 import imaplib, email, email.header, email.utils
 
-CONF = os.path.expanduser("~/Documents/Jarvis/config/email.conf")
+CONF = os.path.expanduser("~/Documents/Projects/Jarvis/config/email.conf")
 VAULT = os.path.expanduser("~/Documents/J's AI Brain")
 CLAUDE = os.path.expanduser("~/.local/bin/claude")
 LOG = os.path.expanduser("~/Library/Logs/Jarvis/email_triage.log")  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)

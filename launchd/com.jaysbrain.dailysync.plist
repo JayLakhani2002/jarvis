@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key><string>com.jaysbrain.dailysync</string>
 	<key>ProgramArguments</key>
-	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/run_sh.py /Users/jay/Documents/Jarvis/bin/brain_cloud_sync.sh</string></array>
+	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/run_sh.py /Users/jay/Documents/Projects/Jarvis/bin/brain_cloud_sync.sh</string></array>
 	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
 	
 	<key>EnvironmentVariables</key>

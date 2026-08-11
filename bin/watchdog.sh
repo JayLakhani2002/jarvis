@@ -7,7 +7,7 @@ ISSUES=""
 
 # night shift: skip all checks while Jay has it paused (plist in launchd/disabled/)
 NS_DISABLED=""
-[ -f "$HOME/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist" ] && NS_DISABLED=1
+[ -f "$HOME/Documents/Projects/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist" ] && NS_DISABLED=1
 # night shift: did today's shift report or log entry appear?
 if [ -z "$NS_DISABLED" ] && ! ls "$VAULT/06 Company/Shift Reports/"*"$TODAY"* >/dev/null 2>&1; then
   if grep -q "start: $(date '+%a %b')" "$HOME/Library/Logs/Jarvis/night_shift.log" 2>/dev/null && grep "start:" "$HOME/Library/Logs/Jarvis/night_shift.log" | tail -1 | grep -q "$(date '+%b %e')"; then
@@ -32,6 +32,22 @@ if [ -f "$RADAR" ]; then
 else
   ISSUES="$ISSUES\n- ⚠️ Market Radar note missing (marketradar job never ran?)"
 fi
+# Whole-stack staleness: dashboard.py regenerates every 30 min when anything is actually
+# executing. If it's stale by >90 min, the automation stack itself is likely dead (e.g. every
+# job spawn-failing after a repo move) even if individual per-job exit codes don't look CRIT —
+# this is exactly the class of bug that caused a silent 10-day outage in Aug 2026.
+DASH="$HOME/Documents/Projects/Jarvis/dashboard/index.html"
+if [ -f "$DASH" ]; then
+  DAGE=$(( ($(date +%s) - $(stat -f %m "$DASH")) / 60 ))
+  if [ "$DAGE" -gt 90 ]; then
+    L="- ⛔ Whole automation stack looks dead: dashboard hasn't regenerated in ${DAGE}min"
+    CRIT="$CRIT\n$L"; ISSUES="$ISSUES\n$L"
+  fi
+else
+  L="- ⛔ dashboard/index.html missing entirely — automation stack may be dead"
+  CRIT="$CRIT\n$L"; ISSUES="$ISSUES\n$L"
+fi
+
 # launchd jobs: loaded AND actually healthy — not just label-present.
 # A crash-looping job still shows its label in `launchctl list` with PID "-" and its
 # last exit status, so the old label-only check silently missed two multi-day outages.
@@ -73,7 +89,7 @@ done
 # down; a direct Bot-API push from here is the one channel that survives when the jobs are
 # broken. Works even if the telegrambot polling daemon is dead — sendMessage doesn't need it.
 # Parse KEY=VALUE from the same conf the bot uses; never print the token; skip if conf absent.
-TG_CONF="$HOME/Documents/Jarvis/config/telegram.conf"
+TG_CONF="$HOME/Documents/Projects/Jarvis/config/telegram.conf"
 if [ -n "$CRIT" ] && [ -f "$TG_CONF" ]; then
   TOKEN=$(grep '^TOKEN=' "$TG_CONF" | head -1 | cut -d= -f2-)
   CHAT_ID=$(grep '^CHAT_ID=' "$TG_CONF" | head -1 | cut -d= -f2-)
@@ -110,3 +126,15 @@ do
   sleep 2
 done
 [ -n "$ISSUES" ] && osascript -e 'display notification "Automation issues found — see Morning Briefing" with title "🩺 Jarvis Watchdog"' 2>/dev/null
+
+# External dead-man switch: every prior outage (incl. this repo-move one) lived entirely
+# inside this same launchd stack, so a broken watchdog can never alert on itself. Ping an
+# off-Mac service only when we ran AND found nothing critical — if the ping stops (watchdog
+# dead, Mac asleep, or CRIT present), the external service alerts Jay from outside this Mac.
+# Dormant until config/heartbeat.conf exists (same dormant-until-configured contract as
+# email triage / net worth). Setup: 06 Company/Drafts/Jarvis Heartbeat — Setup.md
+HB_CONF="$HOME/Documents/Projects/Jarvis/config/heartbeat.conf"
+if [ -z "$CRIT" ] && [ -f "$HB_CONF" ]; then
+  PING_URL=$(grep '^PING_URL=' "$HB_CONF" | head -1 | cut -d= -f2-)
+  [ -n "$PING_URL" ] && curl -fsS -m 10 "$PING_URL" >/dev/null 2>&1 || true
+fi

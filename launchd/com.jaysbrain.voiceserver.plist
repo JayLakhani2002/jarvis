@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key><string>com.jaysbrain.voiceserver</string>
 	<key>ProgramArguments</key>
-	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/voice_server.py</string></array>
+	<array><string>/bin/bash</string><string>-c</string><string>exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/voice_server.py</string></array>
 	<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 	<key>EnvironmentVariables</key>
 	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>

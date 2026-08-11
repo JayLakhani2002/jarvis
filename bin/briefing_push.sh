@@ -3,7 +3,7 @@
 # Channel priority: Telegram (if configured) -> iMessage to self -> macOS notification.
 VAULT="$HOME/Documents/J's AI Brain"
 BRIEFING="$VAULT/06 Company/(C) Morning Briefing.md"
-TG_CONF="$HOME/Documents/Jarvis/config/telegram.conf"   # format: TOKEN=xxx\nCHAT_ID=yyy (created when bot goes live)
+TG_CONF="$HOME/Documents/Projects/Jarvis/config/telegram.conf"   # format: TOKEN=xxx\nCHAT_ID=yyy (created when bot goes live)
 SELF="lakhanijay20@gmail.com"
 BUILD_LOG="$HOME/Library/Logs/Jarvis/briefing_build.log"   # v1.5 rule: app logs live outside ~/Documents
 
@@ -11,7 +11,7 @@ BUILD_LOG="$HOME/Library/Logs/Jarvis/briefing_build.log"   # v1.5 rule: app logs
 # at the top of the note for /brief). Builder prints the brief on stdout. If it succeeds
 # (exit 0) AND is non-empty, send that; otherwise FALL BACK to the raw note content below,
 # so the 07:00 push never silently misses even if a source or the builder itself breaks.
-MSG=$(/opt/homebrew/bin/python3 /Users/jay/Documents/Jarvis/bin/briefing_build.py 2>>"$BUILD_LOG")
+MSG=$(/opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/briefing_build.py 2>>"$BUILD_LOG")
 if [ $? -ne 0 ] || [ -z "$MSG" ]; then
   # FALLBACK — strip frontmatter + footer links for a clean message
   BODY=$(sed '/^---$/,/^---$/d' "$BRIEFING" 2>/dev/null | sed '/Part of \[\[/d' | head -40)

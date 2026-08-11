@@ -4,7 +4,7 @@
 JARVIS HUD skin: near-black slate surface, arc-reactor cyan, mono numerals,
 glow-not-brightness for the sci-fi feel (series colors validated on #020617).
 Self-contained HTML (inline CSS/SVG, system mono stack, no CDN — works offline)
-at ~/Documents/Jarvis/dashboard/index.html. Contains health data → dashboard/
+at ~/Documents/Projects/Jarvis/dashboard/index.html. Contains health data → dashboard/
 is gitignored; the voice server serves it on the LAN with key auth (/dash).
 """
 import os
@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime
 
 VAULT = os.path.expanduser("~/Documents/J's AI Brain")
-OUT = os.path.expanduser("~/Documents/Jarvis/dashboard/index.html")
+OUT = os.path.expanduser("~/Documents/Projects/Jarvis/dashboard/index.html")
 
 # palette: series pair #08a4c7/#c17708 validated (six checks) on surface #020617
 CSS = """
@@ -142,7 +142,7 @@ def jobs_status():
     jobs = ["telegrambot", "voiceserver", "watchdog", "briefingpush", "marketradar",
             "ragindex", "dailysync", "weeklysync", "vaultsnapshot", "dashboard"]
     paused = os.path.exists(os.path.expanduser(
-        "~/Documents/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist"))
+        "~/Documents/Projects/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist"))
     rows = [(j, f"com.jaysbrain.{j}" in out) for j in jobs]
     return rows, paused
 
