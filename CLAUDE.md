@@ -18,4 +18,4 @@ This repo is the **infrastructure code** for the operator's Jarvis: a personal A
 - The one-track priority (deadline-ranked workstreams) outranks Jarvis features. If the operator asks for a feature during a deadline crunch, flag the trade-off once, then build what he decides.
 
 ## Current state (2026-07-07)
-v1 shipped and verified: telegrambot (24/7), nightshift 02:00, watchdog 06:55, briefingpush 07:00, vaultsnapshot hourly, dailysync 21:00, weeklysync Sun 18:05. Remote: github.com/JayLakhani2002/jarvis (private).
+v1 shipped and verified: telegrambot (24/7), nightshift 02:00, watchdog 06:55, briefingpush 07:00, vaultsnapshot hourly, dailysync 21:00, weeklysync Sun 18:05. Remote: github.com/JayLakhani2002/jarvis (public).
