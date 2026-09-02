@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Agora market radar — nightly scan of Berlin werkstudent postings.
+"""Market radar — nightly scan of Berlin werkstudent postings.
 
 Pulls the arbeitnow.com job-board API (free, no key), filters for
 Berlin + werkstudent/working-student roles, and writes a stats note

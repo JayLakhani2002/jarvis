@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Jarvis dashboard (Tier 2) — one screen: habits, timeline, decisions, Agora market.
+"""Jarvis dashboard (Tier 2) — one screen: habits, timeline, decisions, venture market.
 
 JARVIS HUD skin: near-black slate surface, arc-reactor cyan, mono numerals,
 glow-not-brightness for the sci-fi feel (series colors validated on #020617).
@@ -178,11 +178,10 @@ def main():
     radar = radar_series()
 
     import deadlines as DL  # bin/deadlines.py — the one place deadline dates live
-    deadlines = [("THESIS SUBMIT", DL.THESIS, f"{DL.THESIS:%b %d} — priority #1 · protect 25h/wk"),
-                 ("BSS APPLICATION", DL.BSS, f"{DL.BSS:%b %d} — hard deadline"),
-                 ("AGORA BETA LIVE", DL.AGORA, f"{DL.AGORA:%b %d} — Wintersemester wave")]
     tiles = ""
-    for name, dl, note in deadlines:
+    for t in DL.TRACKS:
+        name, dl = t["label"], t["date"]
+        note = f"{dl:%b %d}" + (f" — {t['note']}" if t["note"] else "")
         days = (dl - today).days
         cls = "crit" if days < 30 else ("warn" if days < 60 else "ok")
         tiles += tile(name, f"T−{days}d", note, cls)
@@ -204,7 +203,7 @@ def main():
                    f'<div class="d">{len([v for v in vals if v is not None])} logged days</div></div>')
 
     ws = [r["ws_berlin"] for r in radar]
-    agora = (f'<div class="card"><div class="k">BERLIN WERKSTUDENT POSTINGS — NIGHTLY SAMPLE</div>'
+    market = (f'<div class="card"><div class="k">TRACKED JOB POSTINGS — NIGHTLY SAMPLE</div>'
              f'{sparkline(ws, color="var(--s2)")}'
              f'<div class="d">{len(radar)} scans · latest {ws[-1] if ws else "—"} Berlin WS '
              f'/ {radar[-1]["ws_all"] if radar else "—"} DE-wide</div></div>')
@@ -215,17 +214,18 @@ def main():
         f'<span class="dot {"g" if up else "r"}"></span>{"ONLINE" if up else "OFFLINE"}</td></tr>'
         for j, up in rows)
     if paused:
-        jobs_html += '<tr><td>nightshift</td><td class="warn"><span class="dot y"></span>PAUSED BY JAY</td></tr>'
+        jobs_html += '<tr><td>nightshift</td><td class="warn"><span class="dot y"></span>PAUSED BY OPERATOR</td></tr>'
 
+    track_line = " → ".join(f"{t['label']} {t['date']:%b %d}" for t in DL.TRACKS)
     now = datetime.now()
     doc = f"""<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>J.A.R.V.I.S.</title><style>{CSS}</style>
 <header>{REACTOR}<h1>J.A.R.V.I.S.</h1></header>
 <div class="sub">SYSTEMS BRIEF · <b id="clock">{now.strftime('%Y-%m-%d %H:%M')}</b><br>
-ONE TRACK: THESIS → BSS SEP 13 → AGORA OCT 01</div>
+ONE TRACK: {track_line}</div>
 <div class="grid">{tiles}</div>
 <h2>HABITS — LAST 30 LOGGED DAYS</h2><div class="grid">{sparks}</div>
-<h2>AGORA MARKET</h2><div class="grid">{agora}</div>
+<h2>VENTURE MARKET</h2><div class="grid">{market}</div>
 <h2>AUTOMATION</h2><div class="card"><table>
 <tr><th>SUBSYSTEM</th><th>STATE</th></tr>{jobs_html}</table></div>
 <footer>RENDERED {now.strftime('%H:%M:%S')} · REGENERATES EVERY 30 MIN · DATA NEVER LEAVES THIS MACHINE</footer>

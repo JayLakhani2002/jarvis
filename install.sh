@@ -8,7 +8,7 @@ LA="$HOME/Library/LaunchAgents"
 # stdout/err files under the TCC-protected, iCloud-synced ~/Documents (stale com.apple.macl
 # xattr) → every job crash-loops with EX_CONFIG (78). Create the dir before bootstrapping.
 mkdir -p "$HOME/Library/Logs/Jarvis"
-# jobs paused by Jay live in launchd/disabled/ — unload if present, never install
+# jobs paused by the operator live in launchd/disabled/ — unload if present, never install
 for off in "$P"/launchd/disabled/*.plist; do
   [ -e "$off" ] || continue
   name=$(basename "$off")

@@ -50,7 +50,7 @@
 - [ ] PRD: voice-first local Jarvis app (personas, flows, edge cases: mic permissions, offline, Claude rate limits, vault conflicts)
 - [ ] YC founder-strategy research doc → vault
 - [ ] Append architecture decision to `DECISIONS.md`
-- **Done when:** PRD ratified by Jay.
+- **Done when:** PRD ratified by the operator.
 
 ### Phase 1 — Shell (the walking skeleton, ~1 weekend)
 - [ ] Electron + React app boots, Apple-style dark UI: left nav, center Jarvis orb + chat, bottom status strip (launchd job health from watchdog)
@@ -73,7 +73,7 @@
 
 ### Phase 4 — Company in the app (~1 weekend)
 - [ ] Agents page: existing company agents (chief-of-staff, ceo, cto, cmo, coo, …) each with an interface — chat, last run, outputs
-- [ ] Business dashboard: every venture (Agora, BSS, thesis, content…), stage, deadline countdown, progress, last activity — read from vault Company OS notes
+- [ ] Business dashboard: every venture (content…), stage, deadline countdown, progress, last activity — read from vault Company OS notes
 - **Done when:** one glance answers "what businesses am I running and where do they stand."
 
 ### Phase 5 — Memory pipeline (~1 weekend)
@@ -94,7 +94,7 @@
 - [ ] Content pack: clip capture, IG viral ideas, YT hooks, carousel drafts
 - **Done when:** each pack produces one ratified real output (a real CV pass, a real color analysis).
 
-**Sequencing rule:** phases ship in order 0→7; each is a stopping point. Per the one-track priority (Thesis → BSS Sept 13 → Agora Oct beta), Phase 0 is safe to do now; Phases 1+ are weekend-sized and should be scheduled around thesis work, not instead of it.
+**Sequencing rule:** phases ship in order 0→7; each is a stopping point. Per the one-track priority order (deadline-ranked workstreams), Phase 0 is safe to do now; Phases 1+ are weekend-sized and should be scheduled around the one-track priority order (deadline-ranked workstreams), not instead of it.
 
 ---
 
@@ -102,7 +102,7 @@
 
 > **Context:** You are working on Jarvis v2 — a local Mac command-center app (Electron + React + Claude Agent SDK) that wraps the existing Jarvis backend in `~/Documents/Jarvis` (launchd jobs, Telegram bot, vault sync, claude-mem). The Obsidian vault `~/Documents/J's AI Brain` is the single source of truth for memory and identity; the app is a client of it, never a second brain. Read `JARVIS-V2-PLAN.md`, `README.md`, `DECISIONS.md`, and the vault `CLAUDE.md` first.
 >
-> **Hard rules:** Draft-only boundary — nothing auto-sends, auto-spends, auto-deploys, or pushes without Jay's ratification. Never touch `~/Library/LaunchAgents` directly. Never commit secrets. Voice pipeline is Deepgram (STT) + ElevenLabs (TTS). Every interaction leaves a trace in the vault. Test before claiming done.
+> **Hard rules:** Draft-only boundary — nothing auto-sends, auto-spends, auto-deploys, or pushes without the operator's ratification. Never touch `~/Library/LaunchAgents` directly. Never commit secrets. Voice pipeline is Deepgram (STT) + ElevenLabs (TTS). Every interaction leaves a trace in the vault. Test before claiming done.
 >
 > **Task:** Execute Phase {N} of `JARVIS-V2-PLAN.md`. Build the smallest version that satisfies its "done when" line. Reuse existing scripts, agents, and skills before writing anything new. When a product decision is ambiguous, ask — don't assume. Finish by demonstrating the done-when criterion live and appending significant decisions to `DECISIONS.md`.
 

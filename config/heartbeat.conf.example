@@ -1,0 +1,9 @@
+# External dead-man-switch ping URL — read by bin/watchdog.sh
+# Format: KEY=VALUE lines (only the PING_URL= prefix is parsed with grep/cut).
+# Absence of this file makes the heartbeat dormant by design (setup recipe in
+# vault: 06 Company/Drafts/Jarvis Heartbeat — Setup.md).
+
+# A healthchecks.io / cronitor / similar "ping on success" monitor URL.
+# watchdog.sh curls this only when it ran AND found nothing critical; if the
+# ping stops arriving the external service alerts you from outside this Mac.
+PING_URL=https://hc-ping.com/YOUR-UUID-HERE

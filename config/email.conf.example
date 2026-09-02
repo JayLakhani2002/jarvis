@@ -1,0 +1,20 @@
+# Email triage IMAP credentials — read by bin/email_triage.py
+# Format: KEY=VALUE lines, blank lines and lines starting with "#" are skipped.
+# Absence of this file (or missing IMAP_USER/IMAP_PASS) makes the job dormant
+# by design — it exits 0 quietly rather than erroring.
+
+# Gmail address to triage.
+IMAP_USER=you@gmail.com
+
+# Gmail App Password (NOT your normal password) — Google Account → Security →
+# 2-Step Verification → App Passwords. Read-only IMAP access is used (BODY.PEEK).
+IMAP_PASS=your-app-password-here
+
+# Optional. IMAP host. Default: imap.gmail.com
+IMAP_HOST=imap.gmail.com
+
+# Optional. How many hours back to search for new mail. Default: 24
+LOOKBACK_HOURS=24
+
+# Optional. Max messages fetched per run. Default: 20
+MAX_MESSAGES=20

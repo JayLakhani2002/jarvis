@@ -1,7 +1,15 @@
-config/
+# secrets & machine-local state — never commit
+config/*
+!config/*.example
+finance/
 logs/
+dashboard/
+
+# personal scratch (kept out of the public repo)
+prompt.md
+
+# build & OS noise
 __pycache__/
 .DS_Store
-dashboard/
-finance/
 app/node_modules/
+*.zip

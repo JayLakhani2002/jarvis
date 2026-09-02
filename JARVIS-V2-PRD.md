@@ -1,12 +1,12 @@
 # PRD — Jarvis v2: Voice-First Command Center
 
-*Status: DRAFT — awaiting Jay's ratification. Companion to `JARVIS-V2-PLAN.md` (phases) and `DECISIONS.md` (2026-07-17 entry).*
+*Status: DRAFT — awaiting the operator's ratification. Companion to `JARVIS-V2-PLAN.md` (phases) and `DECISIONS.md` (2026-07-17 entry).*
 
 ---
 
 ## 1. Summary
 
-A local Mac desktop app (Electron + React + Claude Agent SDK) that becomes the face of the existing Jarvis system. Jay talks or types to it; it routes every request through a classifier, executes via Claude Code and the existing company agents, and reads/writes the Obsidian vault — which remains the single source of truth. Nothing existing is rebuilt: the 10 launchd jobs, Telegram bot, voice server, dashboard, and claude-mem keep running unchanged underneath.
+A local Mac desktop app (Electron + React + Claude Agent SDK) that becomes the face of the existing Jarvis system. The operator talks or types to it; it routes every request through a classifier, executes via Claude Code and the existing company agents, and reads/writes the Obsidian vault — which remains the single source of truth. Nothing existing is rebuilt: the 10 launchd jobs, Telegram bot, voice server, dashboard, and claude-mem keep running unchanged underneath.
 
 ## 2. Problem
 
@@ -14,7 +14,7 @@ Jarvis today has five disconnected faces: Telegram chat, a static HTML dashboard
 
 ## 3. User
 
-One user: Jay. Two modes:
+One user: the operator. Two modes:
 - **At desk** — typed chat, dashboards, skills panel, reviewing drafts to ratify.
 - **Hands-free** — push-to-talk voice, spoken replies, capturing raw ideas while away from keyboard.
 
@@ -39,7 +39,7 @@ One user: Jay. Two modes:
 ## 6. Architecture
 
 ```
-Jay (voice/text)
+The operator (voice/text)
    │
    ▼
 Electron app (React UI)
@@ -71,7 +71,7 @@ Apple-style dark UI, single window.
 - **Left nav:** Command Center · Tasks · Schedules · Tools (Skills) · Pipelines · Content · Knowledge Vault (Obsidian graph) · Agents · Businesses.
 - **Center:** Jarvis orb (idle / listening / thinking / speaking animation states) above a streamed chat thread showing tool use inline. Push-to-talk button + hotkey.
 - **Bottom status strip** (VS Code-terminal style): launchd job health (from watchdog logic), last briefing time, active Claude session state, token/rate-limit indicator.
-- **Decision Inbox surface:** pending decisions render as cards with Approve/Reject — ticking Approve edits the vault checkbox exactly as Jay would by hand. (Approve = vault edit only; any resulting send/spend still happens by Jay's hand, same as today.)
+- **Decision Inbox surface:** pending decisions render as cards with Approve/Reject — ticking Approve edits the vault checkbox exactly as the operator would by hand. (Approve = vault edit only; any resulting send/spend still happens by the operator's hand, same as today.)
 
 ## 8. Core flows
 
@@ -81,9 +81,9 @@ Apple-style dark UI, single window.
 
 **F3 — Routing.** Classification is a fast, cheap first pass (single Haiku call): `personal` → identity/vault context; `routine/habit` → COO paths + metrics.md; `reminder/task` → Backlog/calendar draft; `project` → chief-of-staff → right company agent. Misroutes are correctable in-thread ("route this to CTO"), and corrections are logged to improve the router prompt.
 
-**F4 — Business dashboard.** Businesses tab renders one card per venture from `06 Company` + `03 Projects` notes (Agora, DeutschMate, Athprowear, Nilimpa, LifePilot, Thesis…): stage, deadline countdown (from `bin/deadlines.py`), last activity, progress. Read-only view over vault files — no separate database.
+**F4 — Business dashboard.** Businesses tab renders one card per venture discovered in `06 Company` + `03 Projects` notes: stage, deadline countdown (from `bin/deadlines.py`), last activity, progress. Read-only view over vault files — no separate database.
 
-**F5 — Memory pipeline (Phase 5).** Raw capture (voice ramble or quick note) → `00 Notes` staging → night shift drafts a compiled wiki note → Jay ratifies → note promoted and linked (never orphaned; links to [[🧠 HOME]] hub per graph rule).
+**F5 — Memory pipeline (Phase 5).** Raw capture (voice ramble or quick note) → `00 Notes` staging → night shift drafts a compiled wiki note → the operator ratifies → note promoted and linked (never orphaned; links to [[🧠 HOME]] hub per graph rule).
 
 **F6 — Skills panel (Phase 6).** All skills listed with description, Run button (opens a pre-filled chat invocation), and a usage log (when, what, outcome) sourced from claude-mem.
 
@@ -100,7 +100,7 @@ Apple-style dark UI, single window.
 | Deepgram/ElevenLabs down or key missing | Degrade to text silently for TTS; STT failure shows "voice unavailable — type instead". Voice is an enhancement, never a dependency. |
 | Long-running agent task | Streamed progress + Cancel button; task continues logging to vault so a canceled view ≠ lost work. |
 | App crash mid-conversation | No state lives only in memory: transcript persisted incrementally (claude-mem + session log). Relaunch restores last session read-only. |
-| Someone else at the Mac | Same trust model as today (local machine = Jay). No auth layer in v1; revisit if the app ever listens on the network. |
+| Someone else at the Mac | Same trust model as today (local machine = the operator). No auth layer in v1; revisit if the app ever listens on the network. |
 
 ## 10. Privacy & security
 

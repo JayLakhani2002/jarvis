@@ -13,7 +13,17 @@ if ! grep -q '\[\[🧠 HOME\]\]' "$CAPTURE"; then
 fi
 
 # --- Git activity across tracked repos (last 7 days) ---
-for repo in "Agora Jobs" "LifePilot" "DeutschMate-main" "Nilimpa Startup /Bakery Expense APK"; do
+# Tracked repos are operator data: one name per line in config/repos.conf (gitignored).
+# Unconfigured -> auto-discover git repos one level under ~/Documents/Projects.
+REPO_CONF="$HOME/Documents/Projects/Jarvis/config/repos.conf"
+if [ -f "$REPO_CONF" ]; then
+  REPOS=$(grep -vE '^\s*(#|$)' "$REPO_CONF")
+else
+  REPOS=$(find "$HOME/Documents/Projects" -maxdepth 2 -name .git -type d 2>/dev/null \
+          | sed 's|/.git$||' | xargs -I{} basename {} 2>/dev/null)
+fi
+printf '%s\n' "$REPOS" | while IFS= read -r repo; do
+  [ -n "$repo" ] || continue
   REPO_PATH="$HOME/Documents/Projects/$repo"
   [ -d "$REPO_PATH/.git" ] || REPO_PATH="$HOME/Documents/$repo"
   if [ -d "$REPO_PATH/.git" ]; then
@@ -60,16 +70,16 @@ else
   echo "- No Health/Watch data logged this week — check the \"Log Health\" iOS automation is running." >> "$CAPTURE"
 fi
 
-echo "- [ ] Reminder: fold this into the weekly review + confirm the 4 habit numbers (sleep / clean days / gym / thesis hours)" >> "$CAPTURE"
+echo "- [ ] Reminder: fold this into the weekly review + confirm the 4 habit numbers (sleep / clean days / gym / deep-work hours)" >> "$CAPTURE"
 
-# --- Weekly review DRAFT (agent-written, Jay edits ~5 min instead of writing 30) ---
+# --- Weekly review DRAFT (agent-written, the operator edits ~5 min instead of writing 30) ---
 DRAFTS="$VAULT/06 Company/Drafts"
 mkdir -p "$DRAFTS"
 DRAFT_FILE="$DRAFTS/Weekly Review Draft $DATE.md"
 CLAUDE_BIN="$(command -v claude || echo "$HOME/.local/bin/claude")"
 LOG="$HOME/Library/Logs/Jarvis/weekly_review_draft.log"  # outside ~/Documents: TCC/iCloud can poison log files (see README EX_CONFIG gotcha)
 if [ -x "$CLAUDE_BIN" ]; then
-  (cd "$VAULT" && "$CLAUDE_BIN" -p "Draft Jay's weekly review for the week ending $DATE into the file '$DRAFT_FILE'. DRAFT ONLY — Jay ratifies; never send or delete anything. Sources: this week's section of '$CAPTURE' (git activity + health summary just appended), '01 Journals' entries from the last 7 days, 'GOALS.md', and '06 Company/(C) Morning Briefing.md'. The draft must contain: (1) the 4 habit numbers — avg sleep, clean days, gym sessions, thesis hours — with a one-line verdict each vs target; (2) git/shipping activity per project; (3) calendar/plan adherence: what was planned vs what actually happened, and the biggest drift; (4) one-track check: did the week serve Thesis → BSS Sept 13 → Agora Oct beta; (5) 3 proposed priorities for next week. Start the file with '*DRAFT by Jarvis — edit then move into your weekly review. Part of [[🧠 HOME]]*'. Where a number is unknown, write '?? (fill in)' rather than guessing." \
+  (cd "$VAULT" && "$CLAUDE_BIN" -p "Draft the operator's weekly review for the week ending $DATE into the file '$DRAFT_FILE'. DRAFT ONLY — the operator ratifies; never send or delete anything. Sources: this week's section of '$CAPTURE' (git activity + health summary just appended), '01 Journals' entries from the last 7 days, 'GOALS.md', and '06 Company/(C) Morning Briefing.md'. The draft must contain: (1) the 4 habit numbers — avg sleep, clean days, gym sessions, deep-work hours — with a one-line verdict each vs target; (2) git/shipping activity per project; (3) calendar/plan adherence: what was planned vs what actually happened, and the biggest drift; (4) one-track check: did the week serve the one-track priority order in GOALS.md; (5) 3 proposed priorities for next week. Start the file with '*DRAFT by Jarvis — edit then move into your weekly review. Part of [[🧠 HOME]]*'. Where a number is unknown, write '?? (fill in)' rather than guessing." \
     --permission-mode acceptEdits --max-turns 30) >> "$LOG" 2>&1
   [ -f "$DRAFT_FILE" ] && echo "- [ ] Weekly review DRAFT ready: [[Weekly Review Draft $DATE]] — edit + ratify" >> "$CAPTURE"
 else

@@ -1,0 +1,8 @@
+# Shared key for the LAN voice server — read by bin/voice_server.py
+# Format: simple KEY=VALUE lines (only the VOICE_KEY= prefix is parsed).
+# Copy this file to config/voice.conf and fill in a real value. Required —
+# the server refuses to start without it (bin/voice_server.py asserts KEY is set).
+
+# Any random shared secret string; the iOS Shortcut must send the same value
+# to authenticate its requests. Generate one yourself, e.g. `openssl rand -hex 16`.
+VOICE_KEY=your-32-hex-key-here

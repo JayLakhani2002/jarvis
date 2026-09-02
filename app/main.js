@@ -62,9 +62,9 @@ ipcMain.handle('jarvis:ask', async (_e, prompt) => {
         type: 'preset',
         preset: 'claude_code',
         append:
-          'You are Jarvis, speaking to Jay in his local command center app. ' +
+          'You are Jarvis, speaking to the operator in their local command center app. ' +
           'The vault at ~/Documents/J\'s AI Brain is the single source of truth. ' +
-          'Never auto-send, auto-deploy, auto-spend, or push — draft and let Jay ratify.',
+          'Never auto-send, auto-deploy, auto-spend, or push — draft and let the operator ratify.',
       },
       tools: { type: 'preset', preset: 'claude_code' },
       canUseTool: async (toolName, input) => decide(toolName, input),

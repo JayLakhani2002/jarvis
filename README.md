@@ -1,61 +1,192 @@
 # 🧠 Jarvis
 
-The infrastructure that runs Jay's AI company — the code side of the brain at `~/Documents/J's AI Brain` (Obsidian vault, iCloud-synced).
+**A personal AI-operations system that runs unattended on macOS.**
 
-## What runs, when
+Thirteen scheduled jobs, a local RAG index over a private Obsidian vault, a Telegram bot, a
+voice endpoint, and a multi-agent night shift — all coordinated around one hard rule:
+**nothing autonomous ever sends, spends, deploys, or publishes.** Agents produce drafts; a
+human ratifies them.
 
-| Job (launchd) | Schedule | Script | What it does |
-|---|---|---|---|
-| `telegrambot` | always on (KeepAlive) | `bin/telegram_jarvis.py` | Pocket Jarvis: @Jarvis_for_Jay_bot answers from the vault; `/task` `/brief` `/status` |
-| `nightshift` | **PAUSED by Jay** (plist in `launchd/disabled/`) | `bin/night_shift.sh` | Headless chief-of-staff works ≤3 Backlog items (draft-only) → Shift Report + Decision Inbox + Morning Briefing. Re-enable: `git mv launchd/disabled/com.jaysbrain.nightshift.plist launchd/ && ./install.sh` |
-| `watchdog` | 06:55 daily | `bin/watchdog.sh` | Verifies every job ran; appends 🩺 status to the briefing |
-| `briefingpush` | 07:00 daily | `bin/briefing_push.sh` → `bin/briefing_build.py` | Assembles the ratified "commander brief" (≤15 lines, numbers-first) deterministically from vault sources — deadlines, deadline-weighted top-3 backlog, Decision Inbox, habits, market radar, email, calendar, watchdog — and pushes to Telegram (iMessage fallback). Also inserts a self-pruning `## ⚡ 07:00 Brief` section atop the note so `/brief` leads with it. Builder fails/empty → falls back to sending the raw note |
-| `vaultsnapshot` | hourly | `bin/vault_snapshot.sh` | Commits vault content to local backup repo `~/.jarvis-vault-backup.git` (never leaves the machine) |
-| `dailysync` | 21:00 daily | `bin/brain_cloud_sync.sh` | Pushes core brain files → private GitHub `jarvis-brain-sync` → claude.ai Project |
-| `weeklysync` | Sun 18:05 | `bin/weekly_brain_sync.sh` | Git activity + 7-day health digest → vault Quick Capture, then drafts the weekly review into `06 Company/Drafts/` (Jay edits + ratifies) |
-| `marketradar` | 01:30 daily | `bin/market_radar.py` | Scans arbeitnow.com for Berlin werkstudent postings → stats + trend table in `06 Company/(C) Market Radar.md` (fresh before the 02:00 shift) |
-| `voiceserver` | always on (KeepAlive) | `bin/voice_server.py` | LAN HTTP :8765 for Siri Shortcuts: `/ask` (RAG + claude, spoken-length answer), `/brief`, `/health`. Key auth from `config/voice.conf` (gitignored). Read-only by design |
-| `dashboard` | every 30 min + at load | `bin/dashboard.py` | One-screen JARVIS-HUD dashboard (habits, deadlines countdown, Decision Inbox, Agora market, job health) → `dashboard/index.html` (gitignored). View: open the file, or phone via `voiceserver` `/dash?key=…` |
-| `ragindex` | 20:45 daily | `bin/vault_rag.py index` | Vault RAG: embeds every note (nomic-embed-text via local Ollama) → `~/.jarvis-rag/` (local-only). Query: `vault_rag.py search/ask` or Telegram `/search` |
-| `emailtriage` | 06:40 daily | `bin/email_triage.py` | Reads Gmail inbox **read-only** over IMAP (BODY.PEEK), claude classifies needs-reply/FYI/noise → `## 📧 Inbox` section in the briefing + reply drafts in `06 Company/Drafts/` for ratification. **Dormant until `config/email.conf` exists** (setup recipe in vault Drafts). Never sends/marks-read/moves mail |
-| `networth` | 08:05 daily | `bin/networth.py` | CFO tracker: parses bank CSVs dropped in `finance/inbox/` via per-bank mappings (`config/banks.json`) → maintains a marker-managed `## 📊 Net worth` block in the vault's `GOALS.md` (per-account + monthly history). **Dormant until a CSV is in the inbox** (setup recipe in vault Drafts). Reads CSVs, writes only its GOALS block — never sends/spends; bank data never hits the logs |
+This is production-shaped personal infrastructure, not a demo. It has been running daily
+since July 2026, has survived (and been hardened by) several real multi-day outages, and
+every design decision is written down with its rejected alternatives in
+[`DECISIONS.md`](DECISIONS.md).
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph sched["launchd — 13 scheduled jobs"]
+        direction LR
+        A["night shift<br/>02:00"]
+        B["email triage<br/>06:40"]
+        C["watchdog<br/>06:55"]
+        D["briefing push<br/>07:00"]
+        E["net worth<br/>08:05"]
+        F["RAG index<br/>20:45"]
+        G["sync + snapshot<br/>hourly / daily"]
+    end
+
+    subgraph agents["Claude agents — draft-only"]
+        H["chief of staff<br/>routes work"]
+        I["13 role agents<br/>ceo · cto · cfo · dev · qa …"]
+    end
+
+    subgraph iface["Interfaces"]
+        J["Telegram bot<br/>24/7 daemon"]
+        K["voice server<br/>LAN, read-only"]
+        L["static dashboard<br/>regenerated 30 min"]
+    end
+
+    V[("Obsidian vault<br/><b>single source of truth</b>")]
+    R[("local RAG index<br/>Ollama · nomic-embed-text<br/>0600, never leaves disk")]
+    HUMAN(["👤 operator ratifies"])
+
+    sched --> agents
+    agents -->|"drafts only"| V
+    V --> R
+    R --> J & K
+    V --> J & K & L
+    V --> HUMAN
+    HUMAN -->|"approves"| OUT["external effects<br/>send · publish · spend"]
+
+    style OUT fill:#2d1b1b,stroke:#c66,color:#fff
+    style HUMAN fill:#1b2d1b,stroke:#6c6,color:#fff
+    style V fill:#1b1f2d,stroke:#66c,color:#fff
+```
+
+The vault is the brain; this repo is the hands. Product decisions live in the vault, code
+lives here, and the two never merge.
+
+---
+
+## Engineering highlights
+
+These are the decisions worth reading the code for. Full reasoning, including what was
+rejected and why, is in [`DECISIONS.md`](DECISIONS.md).
+
+**Prompt-injection containment.** Email bodies are attacker-controlled text. The triage job
+classifies them with a single-turn model call holding **zero tools** (`--tools ''`,
+`--strict-mcp-config`) and opens IMAP read-only (`BODY.PEEK`, readonly `SELECT`) — so it is
+incapable of sending, deleting, or moving mail at the protocol level. A capability that does
+not exist cannot be exploited by a clever message.
+
+**Knowing when not to use an LLM.** The daily briefing was originally model-composed. It is
+now assembled by a deterministic, stdlib-only builder that copies every number from a source
+file. Reason: a model can hallucinate a habit streak or a deadline count, a `for` loop
+cannot — and the builder is unit-testable, free, and instant. The model kept the jobs that
+actually need judgment.
+
+**Alerting that survives the outage it reports.** The watchdog originally checked only
+whether each job's label appeared in `launchctl list`. A crash-looping job still shows its
+label, so the watchdog reported "all healthy" straight through a two-day outage. It now
+parses PID and exit-status columns and pushes critical failures directly to Telegram —
+because both prior outages were invisible precisely because the alert channel was itself
+one of the broken jobs. An off-machine dead-man switch backstops even that.
+
+**Dormant vs. broken as an exit-code contract.** An unconfigured feature exits `0` and stays
+silent; a configured-but-failing feature exits `1` and the watchdog escalates. The exit code
+carries intent, so optional features can ship disabled without generating permanent noise.
+
+**Marker-managed writes into human-edited files.** The finance tracker maintains exactly the
+region between two HTML comment markers in a file the operator writes by hand, replacing it
+by string slice so every byte outside the markers survives verbatim — and writing nothing at
+all until the first successful ingest, so a failed run can never blank the block.
+
+**Omit over placeholder.** Every unavailable data source drops its entire line rather than
+rendering "N/A" or "0 pending". Eight real lines beat fifteen padded ones.
+
+---
+
+## What runs
+
+| Job | Schedule | What it does |
+|---|---|---|
+| `telegrambot` | always on | Answers from the vault; `/task` `/brief` `/search` `/status` |
+| `nightshift` | 02:00 | Headless chief-of-staff works ≤3 backlog items, draft-only → shift report + decision inbox |
+| `emailtriage` | 06:40 | Read-only IMAP → classify needs-reply / FYI / noise → reply drafts for ratification |
+| `watchdog` | 06:55 | Verifies every job ran; escalates critical failures; pings external dead-man switch |
+| `briefingpush` | 07:00 | Deterministic ≤15-line commander brief → Telegram |
+| `networth` | 08:05 | Parses bank CSVs via per-bank column mappings → marker-managed block in goals file |
+| `dashboard` | every 30 min | Self-contained static HTML — inline CSS, SVG sparklines, no CDN, works offline |
+| `ragindex` | 20:45 | Embeds every vault note locally via Ollama → `~/.jarvis-rag/` |
+| `dailysync` | 21:00 | Pushes a curated file subset to a private remote |
+| `marketradar` | 01:30 | Scrapes job postings → trend table in the vault |
+| `vaultsnapshot` | hourly | Commits the vault to a **bare local** git repo — never leaves the machine |
+| `weeklysync` | Sun 18:05 | Git activity + 7-day health digest → drafts a weekly review |
+| `voiceserver` | always on | LAN HTTP for Siri Shortcuts — read-only by design |
 
 ## Layout
 
 ```
-bin/        all executable scripts + night_shift_prompt.md (the shift's orders)
-launchd/    plist SOURCES (versioned) — edit here, never in ~/Library directly
-config/     telegram.conf (bot token + chat id), banks.json (net-worth column mappings), heartbeat.conf (dead-man switch ping URL) — gitignored, never committed
-finance/    networth job's watched folders: inbox/ processed/ failed/ + state.json — gitignored (bank data never leaves the machine)
-logs/       archived pre-v1.5 job logs (gitignored); live stdout/err + app logs now write to ~/Library/Logs/Jarvis (outside TCC/iCloud — see gotcha 7)
-install.sh  deploys launchd/*.plist → ~/Library/LaunchAgents and reloads them
+bin/        all executable jobs + night_shift_prompt.md (the shift's orders)
+launchd/    plist SOURCES (versioned) — edit here, never ~/Library directly
+config/     gitignored secrets; *.example templates are tracked
+app/        Electron + React desktop client (voice-first, in progress)
+install.sh  deploys launchd/*.plist and reloads them
 ```
 
-## How to change things
+---
 
-1. Edit a script in `bin/` → change is live immediately (jobs call scripts by path).
-2. Edit a schedule → change the plist in `launchd/`, then run `./install.sh`.
-3. New job → add plist to `launchd/` + script to `bin/`, run `./install.sh`, and add it to the job list in `bin/watchdog.sh` and `bin/telegram_jarvis.py` (/status).
-4. Check health → Telegram: `/status`, or `launchctl list | grep jaysbrain` (exit code 0 = healthy).
-5. **New bash-script job? Route it through `bin/run_sh.py`, never call `/bin/bash script.sh` directly in a plist.** launchd-spawned `/bin/bash` gets silently denied ("Operation not permitted") reading `.sh` files under `~/Documents/*` — no TCC prompt is possible for a headless agent, so it just fails. Pattern (see any current plist for the exact form): `["/bin/bash", "-c", "exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/run_sh.py /Users/jay/Documents/Projects/Jarvis/bin/yourscript.sh"]`. Pure-python jobs don't need this — `bash -c "exec /opt/homebrew/bin/python3 script.py"` already works because bash never opens the script file itself.
-6. **Vault file I/O can hit a transient `OSError: [Errno 11] Resource deadlock avoided`** — iCloud/Obsidian briefly locks a note mid-sync. Read with retries (`read_resilient()` in `voice_server.py`, `read_lines_resilient()` in `dashboard.py`); on write, retry with a `brctl download` nudge between attempts (see `watchdog.sh`). Don't let one crash a whole job — vault I/O is never guaranteed instant.
-7. **launchd log paths MUST stay outside `~/Documents`.** On reboot, launchd's `posix_spawn` opens each job's `StandardOut/ErrPath` *before* exec; if that file sits under the TCC-protected, iCloud-synced `~/Documents` and carries a stale `com.apple.macl` xattr, the open is denied and the job crash-loops. **Symptom: label still listed in `launchctl list`, but PID `-` and last exit status `78` (`EX_CONFIG`).** This poisoned all 10 jobs for ~2 days after the Jul 9 reboot (fresh files worked, which is why it looked intermittent). Fix (v1.5): every plist + app-level log path now points at `~/Library/Logs/Jarvis/` and `install.sh` creates it — never point a launchd log path back under `~/Documents`. The watchdog now catches this class directly (PID + exit-78 checks, plus a direct Telegram push that survives even when the briefing-push job is down).
-8. **The repo path is hardcoded — absolutely, in 13 plists and 8 scripts (32 lines total), not derived from the script's own location.** If you move this folder, every job fails instantly with `[Errno 2] No such file or directory` and `launchctl list` shows exit status `2` on all of them — with no alert, because the watchdog that would flag it is itself one of the broken jobs. This happened for real: a repo move from `~/Documents/Jarvis` to `~/Documents/Projects/Jarvis` on Aug 2, 2026 went unnoticed for ~10 days. After any move: find-and-replace the old absolute path across `launchd/*.plist`, `launchd/disabled/*.plist`, the 8 `bin/` scripts that reference it, `install.sh:5`, `app/main.js`, and `app/voice.js` — then run `./install.sh`. The external heartbeat (gotcha below) is the backstop for when this happens again anyway.
-9. **An external dead-man switch backstops the watchdog, because the watchdog can die too.** Every alarm this project has ever built (direct Telegram push, briefing-push fallback) lives inside the same launchd stack it's monitoring — so when that stack breaks wholesale (gotchas 7 and 8 above), the alarm breaks with it. `watchdog.sh` now pings an off-Mac healthchecks.io URL (`config/heartbeat.conf`, gitignored) whenever it runs clean; if the ping ever stops, healthchecks.io alerts Jay from outside this Mac. Dormant until configured — setup recipe in vault `06 Company/Drafts/Jarvis Heartbeat — Setup.md`.
+## Setup
 
-## Related pieces outside this repo
+Requires macOS, Python 3.11+, [Ollama](https://ollama.com) (for RAG), and the
+[Claude Code CLI](https://claude.com/claude-code).
 
-- **The brain:** `~/Documents/J's AI Brain` (Obsidian vault; agents' ground truth; company docs in `06 Company/`)
-- **Agent charters:** `~/.claude/agents/*.md` (13 roles — chief-of-staff, ceo, cto, cmo, cfo, coo, architects, pm, dev, tester, deployer, analyst)
-- **Sync repo (working dir):** `~/.jarvis-brain-sync` → github.com/JayLakhani2002/jarvis-brain-sync (private)
-- **Vault backup repo:** `~/.jarvis-vault-backup.git` (bare, local-only by design — journals/health never leave the machine)
+```bash
+git clone https://github.com/JayLakhani2002/jarvis.git
+cd jarvis
 
-## Recovery
+# fill in the credentials you actually want; every feature is dormant without its config
+cp config/telegram.conf.example config/telegram.conf
+cp config/voice.conf.example    config/voice.conf
 
-Mac reformatted / new machine: clone this repo to `~/Documents/Projects/Jarvis`, restore `config/telegram.conf` (token from BotFather, chat id via getUpdates), run `./install.sh`. Vault comes back via iCloud; agents via `~/.claude/agents` (re-create from Company OS charters if lost). If you clone to a *different* path than `~/Documents/Projects/Jarvis`, see gotcha 8 below first — the repo path is hardcoded and moving it silently breaks every job.
+./install.sh          # deploys plists to ~/Library/LaunchAgents and loads them
+launchctl list | grep jaysbrain   # exit code 0 == healthy
+```
 
-## Hard rules baked into everything
+Every optional feature is **dormant until configured** and exits `0` — you can run this with
+only a Telegram token and add the rest later.
 
-- Unattended = **draft-only**: agents write inside the vault only — no sends, no pushes, no deploys, no spend.
-- Decisions land in the vault's Decision Inbox; **Jay ratifies**, machines never decide.
-- The one track outranks all features: Thesis → BSS (Sept 13) → Agora Oct beta.
+> **Note:** absolute paths are currently hardcoded (see *Known limitations* below), so this
+> expects to live at `~/Documents/Projects/Jarvis`. Cloning elsewhere requires a
+> find-and-replace first.
+
+---
+
+## Security
+
+Autonomous agents, untrusted input, and private data in one system — the model is written
+out in full in [`SECURITY.md`](SECURITY.md). Summary:
+
+- **No unattended process can send, spend, deploy, or push.** Enforced structurally, not by
+  prompt instruction.
+- **Untrusted input is processed by tool-less model calls only.**
+- **`config/` has never been committed** — verifiable with the history scan in `SECURITY.md`.
+- **Journals, health data, embeddings, and financial records never leave the machine.** The
+  vault snapshot repo is bare and local; "private remote" was explicitly rejected as a
+  substitute for "on this disk".
+
+---
+
+## Known limitations
+
+Stated plainly, because the failures taught more than the successes:
+
+- **Absolute paths are hardcoded** across the plists and several scripts. Moving the repo
+  once broke every job silently for ten days — the watchdog that would have caught it was
+  itself one of the broken jobs. This is why the external dead-man switch exists.
+- **launchd log paths must stay outside `~/Documents`.** A stale TCC attribute on a log file
+  under an iCloud-synced directory makes `posix_spawn` fail *before* exec, crash-looping the
+  job with exit `78` while its label still appears healthy in `launchctl list`.
+- **iCloud file eviction breaks background jobs.** Evicted (`dataless`) vault files cannot be
+  materialized by a non-interactive process; the read fails with `EDEADLK`. Retry logic does
+  not help — it is a refusal, not a transient lock.
+- **The LAN voice endpoint is plain HTTP** with a shared-key check.
+- **No CI.** Self-checks exist per script but are not yet run automatically.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

@@ -1,0 +1,24 @@
+{
+  "_comment": "Per-bank CSV column mapping for bin/networth.py. Copy to config/banks.json and edit. Top-level keys are arbitrary account labels (used in state.json/history); each value is a mapping object. 'match' is a lowercase substring matched against the dropped filename to pick which mapping applies to a given CSV in finance/inbox/.",
+
+  "example_de_checking": {
+    "match": "de_checking_export",
+    "date_col": "Buchungstag",
+    "date_fmt": "%d.%m.%Y",
+    "balance_col": "Saldo",
+    "decimal": ",",
+    "delimiter": ";",
+    "encoding": "utf-8"
+  },
+
+  "example_us_checking": {
+    "match": "chase_export",
+    "date_col": "Transaction Date",
+    "date_fmt": "%m/%d/%Y",
+    "amount_col": "Amount",
+    "starting_balance": 0,
+    "decimal": ".",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  }
+}

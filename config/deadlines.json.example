@@ -1,0 +1,20 @@
+[
+  {
+    "label": "TRACK A",
+    "date": "2026-09-30",
+    "keywords": ["track-a", "primary"],
+    "note": "priority #1 · protect 25h/wk"
+  },
+  {
+    "label": "TRACK B",
+    "date": "2026-09-13",
+    "keywords": ["track-b", "application"],
+    "note": "hard deadline"
+  },
+  {
+    "label": "TRACK C",
+    "date": "2026-10-01",
+    "keywords": ["track-c", "beta"],
+    "note": "launch wave"
+  }
+]

@@ -1,0 +1,14 @@
+# Desktop app voice keys (STT/TTS) — read by app/voice.js (Deepgram + ElevenLabs)
+# Format: KEY=VALUE lines (values may optionally be quoted with " or ').
+# Absence of this file, or both keys empty, leaves voice dormant (a valid idle
+# state — app/renderer/app.js shows "Voice dormant — add config/voice-app.conf").
+# Either key alone is a valid "partial" state (only that half of voice works).
+
+# Deepgram API key (speech-to-text) — from console.deepgram.com → API Keys.
+DEEPGRAM_KEY=your-deepgram-key-here
+
+# ElevenLabs API key (text-to-speech) — from elevenlabs.io → Profile → API Keys.
+ELEVENLABS_KEY=your-elevenlabs-key-here
+
+# Optional. ElevenLabs voice id to speak with. Default: JBFqnCBsd6RMkjVDRZzb
+ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb

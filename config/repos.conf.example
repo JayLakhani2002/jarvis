@@ -1,0 +1,4 @@
+# One repo folder name per line; resolved under ~/Documents/Projects then ~/Documents.
+# Delete this file to auto-discover git repos under ~/Documents/Projects instead.
+my-first-repo
+my-second-repo

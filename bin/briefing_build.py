@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Jarvis briefing builder (v1.8) — assembles Jay's ratified 07:00 "commander brief".
+"""Jarvis briefing builder (v1.8) — assembles the operator's ratified 07:00 "commander brief".
 
 A deterministic, numbers-first, imperative brief (≤15 lines, operating-core.md style)
 composed from vault sources that the night shift / other jobs already write. NO claude
@@ -46,21 +46,17 @@ DRAFTS_FILE = os.path.join(VAULT, "06 Company", "Drafts", "Email Replies — %s.
 # not just when run as a script (where bin/ is already sys.path[0]). ---
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import deadlines as _dl
-DEADLINES = [("Thesis", _dl.THESIS),
-             ("BSS", _dl.BSS),
-             ("Agora", _dl.AGORA)]
+# Tracks, their dates, and their keyword sets all come from config/deadlines.json
+# (gitignored operator data) via bin/deadlines.py — nothing personal is hardcoded here.
+DEADLINES = [(t["label"], t["date"]) for t in _dl.TRACKS]
 DEADLINE_BY_TRACK = dict(DEADLINES)
 
-# keyword → track, tested case-insensitively; first track (in this order) whose keyword
-# appears wins. thesis→Thesis, bss/berlin startup/application→BSS, agora→Agora.
-TRACK_KEYWORDS = [
-    ("Thesis", ["thesis"]),
-    ("BSS", ["bss", "berlin startup", "application"]),
-    ("Agora", ["agora"]),
-]
+# keyword → track, tested case-insensitively; first track (in config order) whose keyword
+# appears wins.
+TRACK_KEYWORDS = [(t["label"], t["keywords"]) for t in _dl.TRACKS]
 
 # daily-notes folder candidates probed for personal todos (none exist in the vault today;
-# the todos line self-activates if Jay starts keeping dated daily notes in one of these).
+# the todos line self-activates if the operator starts keeping dated daily notes in one of these).
 DAILY_DIR_CANDIDATES = ["01 Daily", "00 Daily", "Daily", "Daily Notes", "Journal"]
 
 MAX_LINES = 15
@@ -185,7 +181,7 @@ def match_track(raw):
 
 
 def clean_item(raw):
-    """Drop the leading [role] tag so the line reads as an imperative task for Jay."""
+    """Drop the leading [role] tag so the line reads as an imperative task for the operator."""
     return re.sub(r"^\[[^\]]+\]\s*", "", raw).strip()
 
 
@@ -296,7 +292,7 @@ def email_line():
 
 def calendar_line():
     """Today's events via icalBuddy. Omit (and log once) on ANY failure or empty output —
-    headless launchd has no Calendar TCC access until Jay's one-time manual grant (setup doc)."""
+    headless launchd has no Calendar TCC access until the operator's one-time manual grant (setup doc)."""
     if not os.path.exists(ICALBUDDY):
         log("calendar omitted: icalBuddy not installed at %s (brew install ical-buddy; see setup doc)" % ICALBUDDY)
         return None

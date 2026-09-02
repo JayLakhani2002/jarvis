@@ -1,10 +1,10 @@
 'use strict';
 // The draft-only boundary, expressed as a tool-permission gate.
 // Jarvis may read/think/draft freely; it may never send, push, deploy, spend,
-// or touch launchd. Jay does those by hand. See DECISIONS.md 2026-07-07.
+// or touch launchd. The operator does those by hand. See DECISIONS.md 2026-07-07.
 
 const BLOCKED = [
-  [/\bgit\s+(push|remote\s+add)\b/, 'git push — commits are Jay\'s to make'],
+  [/\bgit\s+(push|remote\s+add)\b/, 'git push — commits are the operator\'s to make'],
   [/\blaunchctl\b/, 'launchctl — schedule changes go through launchd/*.plist + ./install.sh'],
   [/\bapi\.telegram\.org\b|\bsendMessage\b/, 'Telegram send — Jarvis never initiates external contact'],
   [/\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)+/, 'recursive delete'],
@@ -25,7 +25,7 @@ function decide(toolName, input) {
     if (re.test(cmd)) {
       return {
         behavior: 'deny',
-        message: `Blocked by Jarvis draft-only boundary: ${why}. Draft it and let Jay ratify.`,
+        message: `Blocked by Jarvis draft-only boundary: ${why}. Draft it and let the operator ratify.`,
       };
     }
   }

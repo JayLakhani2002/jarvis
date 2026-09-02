@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Pocket Jarvis — two-way Telegram bridge to the vault-grounded Claude on this Mac.
-Long-polling daemon: only answers Jay's own chat_id; everything else is ignored.
+Long-polling daemon: only answers the operator's own chat_id; everything else is ignored.
 Zero external dependencies (stdlib only)."""
 import json, os, subprocess, time, urllib.request, urllib.parse, datetime
 
@@ -12,11 +12,11 @@ BACKLOG = os.path.join(VAULT, "06 Company", "(C) Backlog.md")
 BRIEFING = os.path.join(VAULT, "06 Company", "(C) Morning Briefing.md")
 
 PREAMBLE = (
-    "You are Jarvis answering Jay via Telegram from his phone. Ground every answer in this vault "
+    "You are Jarvis answering the operator via Telegram from their phone. Ground every answer in this vault "
     "(CLAUDE.md, GOALS.md, 06 Company/). Be blunt, concrete, numbers over adjectives, per operating-core.md. "
-    "Keep replies under 300 words unless Jay asks for depth. You may read the vault and web, and write INSIDE "
+    "Keep replies under 300 words unless the operator asks for depth. You may read the vault and web, and write INSIDE "
     "the vault only. Never send anything anywhere, never commit/push, never spend. If a request needs a "
-    "decision, add it to '06 Company/(C) Decision Inbox.md' in its entry format and say so.\n\nJay's message: "
+    "decision, add it to '06 Company/(C) Decision Inbox.md' in its entry format and say so.\n\nThe operator's message: "
 )
 
 def read_resilient(path):
@@ -122,7 +122,7 @@ def handle(token, chat_id, text):
         if not os.path.exists(os.path.expanduser("~/Documents/Projects/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist")):
             expected.append("nightshift")
         loaded = [j for j in expected if f"com.jaysbrain.{j}" in jobs]
-        note = "" if "nightshift" in expected else " (night shift paused by Jay)"
+        note = "" if "nightshift" in expected else " (night shift paused by the operator)"
         return send(token, chat_id, f"🩺 {len(loaded)}/{len(expected)} jobs loaded: {', '.join(loaded)}{note}")
     send(token, chat_id, "🧠 thinking…")
     send(token, chat_id, ask_claude(t))

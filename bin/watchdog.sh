@@ -5,7 +5,7 @@ BRIEFING="$VAULT/06 Company/(C) Morning Briefing.md"
 TODAY=$(date +%Y-%m-%d)
 ISSUES=""
 
-# night shift: skip all checks while Jay has it paused (plist in launchd/disabled/)
+# night shift: skip all checks while the operator has it paused (plist in launchd/disabled/)
 NS_DISABLED=""
 [ -f "$HOME/Documents/Projects/Jarvis/launchd/disabled/com.jaysbrain.nightshift.plist" ] && NS_DISABLED=1
 # night shift: did today's shift report or log entry appear?
@@ -103,7 +103,7 @@ fi
 if [ -n "$ISSUES" ]; then
   ENTRY=$(printf '\n## 🩺 Watchdog (%s)%b\n' "$TODAY" "$ISSUES")
 else
-  ENTRY=$(printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: syncs, snapshots, market radar, RAG index, all jobs loaded (night shift %s)\n' "$TODAY" "$([ -n "$NS_DISABLED" ] && echo 'paused by Jay' || echo 'ok')")
+  ENTRY=$(printf '\n## 🩺 Watchdog (%s)\n- ✅ All systems ran: syncs, snapshots, market radar, RAG index, all jobs loaded (night shift %s)\n' "$TODAY" "$([ -n "$NS_DISABLED" ] && echo 'paused by the operator' || echo 'ok')")
 fi
 
 # Briefing is normally reset nightly by the 02:00 shift; while night shift is paused
@@ -130,7 +130,7 @@ done
 # External dead-man switch: every prior outage (incl. this repo-move one) lived entirely
 # inside this same launchd stack, so a broken watchdog can never alert on itself. Ping an
 # off-Mac service only when we ran AND found nothing critical — if the ping stops (watchdog
-# dead, Mac asleep, or CRIT present), the external service alerts Jay from outside this Mac.
+# dead, Mac asleep, or CRIT present), the external service alerts the operator from outside this Mac.
 # Dormant until config/heartbeat.conf exists (same dormant-until-configured contract as
 # email triage / net worth). Setup: 06 Company/Drafts/Jarvis Heartbeat — Setup.md
 HB_CONF="$HOME/Documents/Projects/Jarvis/config/heartbeat.conf"

@@ -161,8 +161,8 @@ if (require.main === module) {
   assert.equal(speakable('Your resting heart rate is 58.').ok, false);
 
   // ordinary work speaks
-  assert.equal(speakable('BSS deadline is in 58 days.').ok, true);
-  assert.equal(speakable('Pushed the thesis draft.', ['/vault/06 Company/(C) Backlog.md']).ok, true);
+  assert.equal(speakable('Track B deadline is in 58 days.').ok, true);
+  assert.equal(speakable('Pushed the draft.', ['/vault/06 Company/(C) Backlog.md']).ok, true);
   assert.equal(speakable('Three jobs are green.', []).ok, true);
 
   // a denial always explains itself

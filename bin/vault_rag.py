@@ -141,7 +141,7 @@ def cmd_ask(question):
     context = "\n\n".join(f"[Source: {c['file']}]\n{c['text']}" for _, c in hits)
     claude = subprocess.run(["bash", "-lc", "command -v claude"], capture_output=True, text=True).stdout.strip() \
         or os.path.expanduser("~/.local/bin/claude")
-    prompt = (f"Answer Jay's question using ONLY these excerpts from his vault. "
+    prompt = (f"Answer the operator's question using ONLY these excerpts from their vault. "
               f"Cite sources as [[note name]]. If the excerpts don't contain the answer, say so.\n\n"
               f"{context}\n\nQuestion: {question}")
     out = subprocess.run([claude, "-p", prompt, "--max-turns", "1"], capture_output=True, text=True, timeout=180)

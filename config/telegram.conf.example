@@ -1,0 +1,10 @@
+# Telegram bot credentials — read by bin/telegram_jarvis.py, bin/briefing_push.sh, bin/watchdog.sh
+# Format: simple KEY=VALUE lines (parsed by splitting on the first "=").
+# Copy this file to config/telegram.conf and fill in real values.
+
+# Bot token from @BotFather (/newbot). Keep secret — this grants full bot control.
+TOKEN=YOUR_BOT_TOKEN_HERE
+
+# Your personal Telegram chat_id — only messages from this chat are answered.
+# Get it by messaging your bot once, then GET https://api.telegram.org/bot<TOKEN>/getUpdates
+CHAT_ID=123456789

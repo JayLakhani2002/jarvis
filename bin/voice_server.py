@@ -53,7 +53,7 @@ def answer(question):
                           capture_output=True, text=True, timeout=60).stdout
     claude = subprocess.run(["bash", "-lc", "command -v claude"], capture_output=True, text=True).stdout.strip() \
         or os.path.expanduser("~/.local/bin/claude")
-    prompt = (f"You are Jarvis answering Jay BY VOICE — Siri will read this aloud. "
+    prompt = (f"You are Jarvis answering the operator BY VOICE — Siri will read this aloud. "
               f"Answer in at most 3 short spoken sentences, no markdown, no lists, no citations. "
               f"Use only these vault excerpts; if they don't contain the answer, say so briefly.\n\n"
               f"{hits[:6000]}\n\nQuestion: {question}")

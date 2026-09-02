@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Net-worth tracker (CFO) — Jay drops bank CSV exports into finance/inbox/; this daily job
+"""Net-worth tracker (CFO) — the operator drops bank CSV exports into finance/inbox/; this daily job
 parses each with a per-bank column mapping (config/banks.json), maintains a per-account +
 monthly-history state file, and rewrites a marker-delimited Net-worth block inside the vault's
 GOALS.md. Draft-only is sacred: it never sends, never spends, never touches anything in GOALS.md
@@ -299,7 +299,7 @@ def main():
 
     banks, berr = load_banks()
     # Files present but no usable mapping config → real breakage. Leave the files in inbox so the
-    # next run (after Jay fixes banks.json) ingests them; exit 1 so the watchdog flags it.
+    # next run (after the operator fixes banks.json) ingests them; exit 1 so the watchdog flags it.
     if banks is None:
         log(f"networth: {len(files)} file(s) in inbox but banks.json {berr} — files left in place, nothing processed (setup recipe in vault Drafts)")
         return 1
