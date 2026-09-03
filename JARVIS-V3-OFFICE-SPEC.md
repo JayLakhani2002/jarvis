@@ -58,16 +58,20 @@ These are the gaps that would have stalled implementation. Each is now decided.
    failed | cancelled`. Anything else is unrepresentable.
 5. **Interruption.** Every running agent has a stop control. An agent that cannot be
    killed is a bug, not a feature.
-6. **Persistence.** Tasks survive restart in `~/.jarvis-office/tasks.db` (SQLite via
-   `node:sqlite`, stdlib — no new dependency). The vault stays the source of truth for
-   *outcomes*; the DB holds *run state*, which is machine bookkeeping and does not belong
-   in an Obsidian note.
+6. **Persistence.** Tasks survive restart in `~/.jarvis-office/office.json`, written
+   atomically (tmp file, then rename). **Not SQLite** — `node:sqlite` was verified
+   unavailable on this machine (Node v23.3.0, `ERR_UNKNOWN_BUILTIN_MODULE`), and a native
+   module such as `better-sqlite3` would need rebuilding against Electron 43's ABI. One
+   operator's task list does not justify that: a debounced JSON write is smaller, has zero
+   dependencies, and survives an Electron upgrade untouched. Revisit only if the file
+   grows past a few MB. The vault stays the source of truth for *outcomes*; this file
+   holds *run state*, which is machine bookkeeping and does not belong in an Obsidian note.
 7. **Skill routing.** 165 skill directories cannot all be handed to every agent. The boss
    names the skills a task needs in its plan; the worker is spawned with only those.
 8. **Failure semantics.** A worker that errors, times out (default 10 min), or returns
    unparseable output moves to `failed` with the reason on its card. It is never silently
    marked done — the same rule the eval harness already enforces.
-9. **Art assets.** The reference is a licensed commercial product. See *Open question*.
+9. **Art assets.** Settled: drawn procedurally from roster data. See *Art direction*.
 
 ## Architecture
 
@@ -194,7 +198,8 @@ CREATE TABLE steps (
 8. A step that wrote files shows a diff; approving lands it on the real branch, rejecting
    discards the worktree. **No file reaches a tracked branch without an explicit approval.**
 9. `guard.js` still blocks `git push` from every agent, boss included.
-10. Killing and relaunching the app restores all task and step state from SQLite.
+10. Killing and relaunching the app restores all task and step state from the JSON
+    state file, and any step left `working` by the dead process becomes `failed`/`interrupted`.
 11. A task exceeding $2.00, or the day exceeding $20, pauses the queue and asks.
 12. Timeouts (10 min default) move the step to `failed` with `error='timeout'`.
 13. The floorplan renders all 84 agents at 60fps on the operator's Mac.
@@ -220,7 +225,7 @@ room heat; empty state. Operator submits a prompt; boss plans on Fable 5.1; plan
 approve/reject; workers spawn on Sonnet 5 behind the concurrency cap; delegation beams;
 live status glyphs and streaming output; desk artifacts on completion; the waiting line;
 click-to-inspect side panel with a stop control; avatar walk; `⌘K` jump-to-agent; `⌘L`
-list view; burn display (**showing** spend, not yet enforcing); SQLite persistence.
+list view; burn display (**showing** spend, not yet enforcing); JSON state persistence.
 
 Output is read-only — **no file writing yet**. Every state transition is persisted from
 day one, so Slice 2's scrubber is a read over data Slice 1 already wrote.
@@ -235,7 +240,8 @@ controllable. Slice 2 is what lets it write code.
 
 | File | Change |
 |---|---|
-| `app/office.js` | NEW — state machine, boss/worker spawning, concurrency, SQLite, self-checks |
+| `app/office.js` | NEW — state machine, scheduling, concurrency, JSON persistence, self-checks |
+| `app/office-runners.js` | NEW — the two model calls; boss on Fable 5.1, workers on Sonnet 5, both write-locked |
 | `app/roster.js` | NEW — reads `~/.claude/agents/*.md`, maps charters to rooms and desks |
 | `app/renderer/office.js` | NEW — canvas floorplan renderer, avatars, name tags, side panel |
 | `app/renderer/office.css` | NEW — panel and tag styling, theme-aware |
@@ -316,7 +322,7 @@ permanent screen real estate rather than a menu.
 
 **Time scrubber.** A timeline along the bottom replays office state at any past moment —
 who was working, what they produced, where it failed. Every state transition is already
-persisted in SQLite, so this is a read over existing data, not new bookkeeping. Debugging
+persisted to the state file, so this is a read over existing data, not new bookkeeping. Debugging
 multi-agent behavior after the fact is otherwise close to impossible.
 
 **Stable seating.** An agent's desk is deterministic — derived from a hash of its charter

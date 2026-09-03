@@ -1,11 +1,11 @@
 {
   "name": "jarvis-app",
   "version": "0.1.0",
-  "description": "Jarvis v2 command center — Electron shell over the existing Jarvis backend",
+  "description": "Jarvis v2 command center — Electron shell over the existing Jarvis backend, plus the Office",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node guard.js && node jobs.js && node voice.js"
+    "test": "node guard.js && node jobs.js && node voice.js && node roster.js && node office-runners.js && node office.js && node -e \"require('./renderer/office.js').__selftest()\" && node integration.js"
   },
   "license": "UNLICENSED",
   "private": true,

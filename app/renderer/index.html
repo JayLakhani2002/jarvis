@@ -7,6 +7,7 @@
         content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src blob:; connect-src 'none';" />
   <title>Jarvis</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="office.css" />
 </head>
 <body>
   <!-- icon sprite: Lucide geometry, 24x24 stroke. No emoji as icons. -->
@@ -43,7 +44,7 @@
       <button class="nav-item" disabled title="Phase 6"><svg><use href="#i-tools"/></svg>Tools</button>
       <button class="nav-item" disabled title="Phase 5"><svg><use href="#i-pipelines"/></svg>Pipelines</button>
       <button class="nav-item" disabled title="Phase 7"><svg><use href="#i-content"/></svg>Content</button>
-      <button class="nav-item" disabled title="Phase 4"><svg><use href="#i-agents"/></svg>Agents</button>
+      <button class="nav-item" data-view="office"><svg><use href="#i-agents"/></svg>Agents</button>
       <button class="nav-item" disabled title="Phase 4"><svg><use href="#i-business"/></svg>Businesses</button>
     </nav>
 
@@ -82,6 +83,32 @@
           <pre class="note" id="note">Select a note.</pre>
         </div>
       </section>
+
+      <section class="view" id="view-office" hidden>
+        <div class="office">
+          <div class="office-bar">
+            <form class="office-ask" id="office-ask">
+              <label class="sr-only" for="office-prompt">Task for the office</label>
+              <input id="office-prompt" type="text" autocomplete="off"
+                     placeholder="Give the office a task. The boss plans it, then you approve." />
+              <button type="submit" title="Send to the boss"><svg><use href="#i-send"/></svg></button>
+            </form>
+            <div class="office-meters">
+              <span class="stat" id="office-active">0 working</span>
+              <span class="stat" id="office-burn">$0.00 today</span>
+              <button class="ghost" id="office-toggle" aria-pressed="false"
+                      title="Toggle list view (Cmd+L)">List</button>
+            </div>
+          </div>
+
+          <div class="office-stage">
+            <canvas id="office-canvas" tabindex="0"
+                    aria-label="Office floorplan. Arrow keys pan, Enter opens the focused agent."></canvas>
+            <table class="office-list" id="office-list" hidden></table>
+            <aside class="office-panel" id="office-panel" hidden aria-live="polite"></aside>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -95,5 +122,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="office.js"></script>
 </body>
 </html>

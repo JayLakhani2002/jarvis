@@ -8,6 +8,9 @@ const { promisify } = require('node:util');
 const { decide } = require('./guard');
 const { classify } = require('./jobs');
 const voice = require('./voice');
+const { loadRoster } = require('./roster');
+const { createOffice } = require('./office');
+const { createRunners } = require('./office-runners');
 
 const pexec = promisify(execFile);
 
@@ -45,6 +48,47 @@ app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit());
 app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());
 
 const send = (channel, payload) => win && !win.isDestroyed() && win.webContents.send(channel, payload);
+
+// ---------------------------------------------------------------- office
+// Built lazily on first use: the roster reads 84 files off disk and the state file is
+// loaded from disk, neither worth doing for a session that never opens the Office tab.
+
+let office;
+let roster;
+
+async function getOffice() {
+  if (office) return office;
+  roster = roster || loadRoster();
+
+  // The SDK is ESM-only, so it is imported here and injected — office.js stays
+  // model-free and therefore testable without a network or an API key.
+  const { query } = await import('@anthropic-ai/claude-agent-sdk');
+  const runners = createRunners({
+    query,
+    agentIds: roster.agents.map((a) => a.id),
+    cwd: REPO,
+    extraDirs: [VAULT],
+    onStream: (stepId, chunk) => send('office:stream', { stepId, chunk }),
+  });
+
+  office = createOffice({
+    dbPath: path.join(os.homedir(), '.jarvis-office', 'office.json'),
+    runBoss: runners.runBoss,
+    runWorker: runners.runWorker,
+    maxConcurrent: 4,
+  });
+  office.on('change', () => send('office:change', office.getState()));
+  return office;
+}
+
+ipcMain.handle('office:roster', () => (roster = roster || loadRoster()));
+ipcMain.handle('office:state', async () => (await getOffice()).getState());
+ipcMain.handle('office:submit', async (_e, prompt) => (await getOffice()).submit(prompt));
+ipcMain.handle('office:approvePlan', async (_e, taskId, approved) =>
+  (await getOffice()).approvePlan(taskId, approved));
+ipcMain.handle('office:approveStep', async (_e, stepId, approved) =>
+  (await getOffice()).approveStep(stepId, approved));
+ipcMain.handle('office:cancel', async (_e, id) => (await getOffice()).cancel(id));
 
 // ---------------------------------------------------------------- chat
 

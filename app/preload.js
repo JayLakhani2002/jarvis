@@ -14,6 +14,19 @@ contextBridge.exposeInMainWorld('jarvis', {
   onDone: (fn) => ipcRenderer.on('jarvis:done', (_e, d) => fn(d)),
 });
 
+// The Office. Same rule as above: the renderer gets verbs, never fs or a model client.
+contextBridge.exposeInMainWorld('office', {
+  roster: () => ipcRenderer.invoke('office:roster'),
+  state: () => ipcRenderer.invoke('office:state'),
+  submit: (prompt) => ipcRenderer.invoke('office:submit', prompt),
+  approvePlan: (taskId, approved) => ipcRenderer.invoke('office:approvePlan', taskId, approved),
+  approveStep: (stepId, approved) => ipcRenderer.invoke('office:approveStep', stepId, approved),
+  cancel: (id) => ipcRenderer.invoke('office:cancel', id),
+
+  onChange: (fn) => ipcRenderer.on('office:change', (_e, s) => fn(s)),
+  onStream: (fn) => ipcRenderer.on('office:stream', (_e, d) => fn(d)),
+});
+
 contextBridge.exposeInMainWorld('voice', {
   config: () => ipcRenderer.invoke('voice:config'),
   start: (sampleRate) => ipcRenderer.invoke('voice:start', sampleRate),

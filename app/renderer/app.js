@@ -183,9 +183,13 @@ document.querySelectorAll('.nav-item[data-view]').forEach((btn) => {
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     const view = btn.dataset.view;
-    $('view-command').hidden = view !== 'command';
-    $('view-vault').hidden = view !== 'vault';
+    // Data-driven so a new section is a nav button + a <section>, not an edit here.
+    document.querySelectorAll('.view').forEach((s) => {
+      s.hidden = s.id !== `view-${view}`;
+    });
     if (view === 'vault') loadTree('');
+    // The Office owns its own lifecycle; office.js listens for this.
+    document.dispatchEvent(new CustomEvent('view:change', { detail: view }));
   });
 });
 

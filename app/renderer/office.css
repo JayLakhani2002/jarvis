@@ -1,0 +1,166 @@
+/* Office — procedural floorplan view. Layout/chrome only; the floor itself
+   is drawn on #office-canvas by office.js (no image assets). Reuses the
+   tokens from styles.css (colors, --fast/--ease-out, --mono). */
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.office { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* ---------------- top bar ---------------- */
+.office-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 20px; border-bottom: 1px solid var(--line);
+}
+
+.office-ask { flex: 1; display: flex; gap: 8px; min-width: 0; }
+#office-prompt {
+  flex: 1; min-width: 0;
+  background: var(--panel); border: 1px solid var(--line);
+  color: var(--text); border-radius: 10px;
+  padding: 9px 13px; font-size: 13px; outline: none;
+  transition: border-color var(--fast) var(--ease-out);
+}
+#office-prompt::placeholder { color: var(--muted); }
+#office-prompt:focus { border-color: var(--cyan); }
+
+.office-ask button {
+  display: grid; place-items: center;
+  width: 38px; height: 38px; flex: 0 0 auto;
+  background: var(--cyan); border: 1px solid var(--cyan); color: var(--bg);
+  border-radius: 10px; cursor: pointer;
+  transition: background var(--fast) var(--ease-out);
+}
+.office-ask button:hover { background: #67e8f9; }
+.office-ask button svg {
+  width: 16px; height: 16px;
+  stroke: currentColor; fill: none; stroke-width: 1.75;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.office-meters { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+
+.ghost {
+  appearance: none; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  border-radius: 8px; padding: 7px 12px; font-size: 12px;
+  transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out),
+              border-color var(--fast) var(--ease-out);
+}
+.ghost:hover { background: var(--raised); color: var(--text); }
+.ghost[aria-pressed="true"] {
+  background: rgba(34, 211, 238, 0.14); color: var(--cyan); border-color: var(--cyan);
+}
+
+/* ---------------- stage (canvas / list / panel share this) ---------------- */
+.office-stage { position: relative; flex: 1; min-height: 0; }
+
+#office-canvas {
+  width: 100%; height: 100%; display: block;
+  background: var(--bg);
+  cursor: default;
+}
+#office-canvas[hidden] { display: none; }
+
+/* ---------------- list view ---------------- */
+.office-list {
+  width: 100%; height: 100%; overflow: auto;
+  border-collapse: collapse; font-size: 13px;
+}
+.office-list th, .office-list td {
+  text-align: left; padding: 9px 16px;
+  border-bottom: 1px solid var(--line);
+  max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.office-list thead th {
+  color: var(--dim); font: 500 11px/1 var(--mono);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.office-list tbody tr { cursor: pointer; color: var(--dim); }
+.office-list tbody tr:hover,
+.office-list tbody tr:focus-visible { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.office-list td.status-idle { color: var(--muted); }
+.office-list td.status-working { color: var(--amber); }
+.office-list td.status-streaming { color: var(--cyan); }
+.office-list td.status-needs_review { color: var(--green); }
+.office-list td.status-failed { color: var(--red); }
+
+/* ---------------- agent / plan panel ---------------- */
+.office-panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 320px; max-width: 88vw;
+  background: var(--panel); border-left: 1px solid var(--line);
+  padding: 18px 18px 20px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: -12px 0 26px rgba(0, 0, 0, 0.35);
+  animation: office-panel-in var(--fast) var(--ease-out) both;
+}
+@keyframes office-panel-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.panel-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
+.panel-sub { font-size: 12px; color: var(--dim); margin-top: -6px; }
+
+/* --dim on --panel measures ~7:1 contrast; --muted measures ~3.75:1 and is
+   never used for panel text (fails the 4.5:1 requirement on this bg). */
+.panel-status {
+  align-self: flex-start;
+  font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.panel-status.status-idle { color: var(--dim); }
+.panel-status.status-working { color: var(--amber); }
+.panel-status.status-streaming { color: var(--cyan); }
+.panel-status.status-needs_review { color: var(--green); }
+.panel-status.status-failed { color: var(--red); }
+
+.panel-label {
+  font: 600 10px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--dim); margin-top: 6px;
+}
+.panel-text { margin: 0; font-size: 13px; color: var(--text); line-height: 1.6; }
+.panel-output {
+  margin: 0; padding: 10px 12px;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 8px;
+  font: 11px/1.6 var(--mono); color: var(--text);
+  white-space: pre-wrap; word-wrap: break-word;
+  max-height: 220px; overflow-y: auto;
+}
+.panel-error {
+  font-size: 12px; color: var(--red);
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.panel-stop {
+  margin-top: 8px; align-self: flex-start;
+  appearance: none; cursor: pointer;
+  background: var(--red); border: 1px solid var(--red); color: #fff;
+  border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 600;
+  transition: background var(--fast) var(--ease-out);
+}
+.panel-stop:hover { background: #fb7185; }
+
+/* The approval gate — the only thing standing between a plan and a worker
+   actually running. Kept visually loud (full-width buttons, high contrast). */
+.plan-actions { display: flex; gap: 10px; margin-top: 10px; }
+.plan-actions button {
+  flex: 1; appearance: none; cursor: pointer;
+  border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+  transition: filter var(--fast) var(--ease-out);
+}
+.plan-actions button:hover { filter: brightness(1.12); }
+.plan-approve { background: var(--green); border: 1px solid var(--green); color: #06210f; }
+.plan-reject { background: transparent; border: 1px solid var(--red); color: var(--red); }
