@@ -95,6 +95,14 @@ region between two HTML comment markers in a file the operator writes by hand, r
 by string slice so every byte outside the markers survives verbatim — and writing nothing at
 all until the first successful ingest, so a failed run can never blank the block.
 
+**Measured retrieval, not assumed retrieval.** `rag_eval.py` scores the RAG pipeline
+against a 20-question golden set of real vault questions with known source notes, reporting
+hit@1/3/5 and MRR. The first run was not flattering — **MRR 0.40, hit@5 11/20** — which is
+the point: a chunking or model change now moves a number instead of a feeling. Two design
+notes: nDCG and MAP are deliberately skipped as noise-dominated at n=20, and a failed CLI
+call is recorded as a failed *measurement* rather than graded as a wrong answer, so a flaky
+invocation can never quietly depress the trend line.
+
 **Omit over placeholder.** Every unavailable data source drops its entire line rather than
 rendering "N/A" or "0 pending". Eight real lines beat fifteen padded ones.
 
@@ -112,6 +120,7 @@ rendering "N/A" or "0 pending". Eight real lines beat fifteen padded ones.
 | `networth` | 08:05 | Parses bank CSVs via per-bank column mappings → marker-managed block in goals file |
 | `dashboard` | every 30 min | Self-contained static HTML — inline CSS, SVG sparklines, no CDN, works offline |
 | `ragindex` | 20:45 | Embeds every vault note locally via Ollama → `~/.jarvis-rag/` |
+| `rageval` | Sun 19:00 | Scores retrieval against a golden set — hit@k and MRR, so RAG quality is a tracked number, not a vibe |
 | `dailysync` | 21:00 | Pushes a curated file subset to a private remote |
 | `marketradar` | 01:30 | Scrapes job postings → trend table in the vault |
 | `vaultsnapshot` | hourly | Commits the vault to a **bare local** git repo — never leaves the machine |

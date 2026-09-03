@@ -1,0 +1,23 @@
+[
+  {
+    "id": "g01",
+    "q": "What rule stops the automation from acting without approval?",
+    "sources": ["06 Company/(C) Company OS.md"],
+    "must_include": ["draft", "ratif"],
+    "note": "Single-note lookup. The question deliberately avoids the note's title so this tests semantic retrieval, not string matching."
+  },
+  {
+    "id": "g02",
+    "q": "How many items does the overnight agent work through, and what happens to the rest?",
+    "sources": ["06 Company/(C) Company OS.md", "06 Company/(C) Backlog.md"],
+    "must_include": ["three"],
+    "note": "Multi-source: the cap lives in one note, the queue it draws from in another."
+  },
+  {
+    "id": "g03",
+    "q": "Which deadline is nearest and what has to be finished for it?",
+    "sources": ["GOALS.md"],
+    "must_include": [],
+    "note": "Paraphrased/harder: no shared vocabulary with the source note. must_include left empty because the correct answer changes over time."
+  }
+]

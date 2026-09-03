@@ -13,3 +13,7 @@ __pycache__/
 .DS_Store
 app/node_modules/
 *.zip
+
+# eval goldens contain real vault questions — the example is the public template
+evals/goldens.json
+evals/results/

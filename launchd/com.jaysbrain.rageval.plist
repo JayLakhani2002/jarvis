@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key><string>com.jaysbrain.rageval</string>
+	<key>ProgramArguments</key>
+	<array><string>/bin/bash</string><string>-c</string><string>pgrep -x ollama >/dev/null || { nohup /opt/homebrew/bin/ollama serve >/dev/null 2>&amp;1 &amp; sleep 5; }; exec /opt/homebrew/bin/python3 /Users/jay/Documents/Projects/Jarvis/bin/rag_eval.py --retrieval-only</string></array>
+	<key>StartCalendarInterval</key><dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>0</integer></dict>
+	<key>EnvironmentVariables</key>
+	<dict><key>PATH</key><string>/Users/jay/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+	<key>StandardOutPath</key><string>/Users/jay/Library/Logs/Jarvis/rageval.out.log</string>
+	<key>StandardErrorPath</key><string>/Users/jay/Library/Logs/Jarvis/rageval.err.log</string>
+</dict>
+</plist>
