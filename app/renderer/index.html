@@ -12,6 +12,7 @@
   <title>Jarvis</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="office.css" />
+  <link rel="stylesheet" href="sections.css" />
 </head>
 <body>
   <!-- icon sprite: Lucide geometry, 24x24 stroke. No emoji as icons. -->
@@ -44,13 +45,13 @@
            palette="frost" trails="false" aria-hidden="true"></jarvis-orb>JARVIS</div>
       <button class="nav-item active" data-view="command"><svg><use href="#i-command"/></svg>Command Center</button>
       <button class="nav-item" data-view="vault"><svg><use href="#i-vault"/></svg>Knowledge Vault</button>
-      <button class="nav-item" disabled title="Phase 3"><svg><use href="#i-tasks"/></svg>Tasks</button>
-      <button class="nav-item" disabled title="Phase 3"><svg><use href="#i-schedule"/></svg>Schedules</button>
-      <button class="nav-item" disabled title="Phase 6"><svg><use href="#i-tools"/></svg>Tools</button>
-      <button class="nav-item" disabled title="Phase 5"><svg><use href="#i-pipelines"/></svg>Pipelines</button>
-      <button class="nav-item" disabled title="Phase 7"><svg><use href="#i-content"/></svg>Content</button>
+      <button class="nav-item" data-view="tasks"><svg><use href="#i-tasks"/></svg>Tasks</button>
+      <button class="nav-item" data-view="schedules"><svg><use href="#i-schedule"/></svg>Schedules</button>
+      <button class="nav-item" data-view="tools"><svg><use href="#i-tools"/></svg>Tools</button>
+      <button class="nav-item" data-view="pipelines"><svg><use href="#i-pipelines"/></svg>Pipelines</button>
+      <button class="nav-item" data-view="content"><svg><use href="#i-content"/></svg>Content</button>
       <button class="nav-item" data-view="office"><svg><use href="#i-agents"/></svg>Agents</button>
-      <button class="nav-item" disabled title="Phase 4"><svg><use href="#i-business"/></svg>Businesses</button>
+      <button class="nav-item" data-view="businesses"><svg><use href="#i-business"/></svg>Businesses</button>
     </nav>
 
     <main class="main">
@@ -107,6 +108,57 @@
             <aside class="office-panel" id="office-panel" hidden aria-live="polite"></aside>
           </div>
         </div>
+      </section>
+
+      <section class="view" id="view-tasks" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-tasks"/></svg>Tasks</h2>
+          <p>Every task submitted to the Office, straight from its state.</p>
+        </div>
+        <div class="section-body" id="tasks-body"></div>
+      </section>
+
+      <section class="view" id="view-schedules" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-schedule"/></svg>Schedules</h2>
+          <p>The launchd jobs that run Jarvis unattended, and their last exit.</p>
+        </div>
+        <div class="section-body" id="schedules-body"></div>
+      </section>
+
+      <section class="view" id="view-tools" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-tools"/></svg>Tools</h2>
+        </div>
+        <div class="section-body">
+          <div class="empty-state">Tool integrations aren't built yet. This will hold the connectors the Office can call — search, code execution, browser — once they exist.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-pipelines" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-pipelines"/></svg>Pipelines</h2>
+        </div>
+        <div class="section-body">
+          <div class="empty-state">Pipelines aren't built yet. This will hold multi-step automation chains once they exist.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-content" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-content"/></svg>Content</h2>
+        </div>
+        <div class="section-body">
+          <div class="empty-state">Content generation isn't built yet. This will hold drafts and published output once it exists.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-businesses" hidden>
+        <div class="section-head">
+          <h2><svg><use href="#i-business"/></svg>Businesses</h2>
+          <p>Project notes from the vault's 03 Projects and 06 Company folders.</p>
+        </div>
+        <div class="section-body" id="businesses-body"></div>
       </section>
     </main>
   </div>

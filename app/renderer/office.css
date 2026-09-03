@@ -37,9 +37,9 @@
   width: 38px; height: 38px; flex: 0 0 auto;
   background: var(--cyan); border: 1px solid var(--cyan); color: var(--bg);
   border-radius: 10px; cursor: pointer;
-  transition: background var(--fast) var(--ease-out);
+  transition: filter var(--fast) var(--ease-out);
 }
-.office-ask button:hover { background: #67e8f9; }
+.office-ask button:hover { filter: brightness(1.15); }
 .office-ask button svg {
   width: 16px; height: 16px;
   stroke: currentColor; fill: none; stroke-width: 1.75;
@@ -57,22 +57,26 @@
 }
 .ghost:hover { background: var(--raised); color: var(--text); }
 .ghost[aria-pressed="true"] {
-  background: rgba(34, 211, 238, 0.14); color: var(--cyan); border-color: var(--cyan);
+  background: var(--accent-soft); color: var(--cyan); border-color: var(--cyan);
 }
 
-/* ---------------- stage (canvas / list / panel share this) ---------------- */
-.office-stage { position: relative; flex: 1; min-height: 0; }
+/* ---------------- stage (canvas / list / panel share this) ----------------
+   Flex row so the panel *docks* beside the canvas instead of overlapping it
+   — opening it resizes the canvas rather than covering it (JOB 1: the old
+   position:absolute panel had no way to shrink the canvas out from under
+   it, and there was no close button, so once opened it was a dead end). */
+.office-stage { position: relative; flex: 1; min-height: 0; display: flex; }
 
 #office-canvas {
-  width: 100%; height: 100%; display: block;
-  background: var(--bg);
+  flex: 1 1 auto; min-width: 0; width: auto; height: 100%; display: block;
+  background: #faf8f5; /* warm off-white floor — office.js repaints this every frame */
   cursor: default;
 }
 #office-canvas[hidden] { display: none; }
 
 /* ---------------- list view ---------------- */
 .office-list {
-  width: 100%; height: 100%; overflow: auto;
+  flex: 1 1 auto; min-width: 0; width: auto; height: 100%; overflow: auto;
   border-collapse: collapse; font-size: 13px;
 }
 .office-list th, .office-list td {
@@ -87,27 +91,50 @@
 }
 .office-list tbody tr { cursor: pointer; color: var(--dim); }
 .office-list tbody tr:hover,
-.office-list tbody tr:focus-visible { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.office-list tbody tr:focus-visible { background: var(--raised); color: var(--text); }
 .office-list td.status-idle { color: var(--muted); }
 .office-list td.status-working { color: var(--amber); }
 .office-list td.status-streaming { color: var(--cyan); }
 .office-list td.status-needs_review { color: var(--green); }
 .office-list td.status-failed { color: var(--red); }
 
-/* ---------------- agent / plan panel ---------------- */
+/* ---------------- agent / plan panel ----------------
+   Docked flex item (see .office-stage) — NOT position:absolute, so it
+   resizes the canvas beside it instead of covering it. The `[hidden]`
+   override below matters: `.office-panel { display: flex }` has the same
+   specificity as the UA's `[hidden] { display: none }`, and author styles
+   win ties — without this rule, setting `panel.hidden = true` (every close
+   path: the X button, Escape, clicking empty canvas) would NOT actually
+   hide it. That was JOB 1's real bug, not just a missing close button. */
 .office-panel {
-  position: absolute; top: 0; right: 0; bottom: 0;
-  width: 320px; max-width: 88vw;
+  position: relative; flex: 0 0 320px; max-width: 88vw;
   background: var(--panel); border-left: 1px solid var(--line);
-  padding: 18px 18px 20px; overflow-y: auto;
+  padding: 44px 18px 20px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 10px;
-  box-shadow: -12px 0 26px rgba(0, 0, 0, 0.35);
+  box-shadow: -12px 0 26px rgba(0, 0, 0, 0.12);
   animation: office-panel-in var(--fast) var(--ease-out) both;
 }
+.office-panel[hidden] { display: none; }
 @keyframes office-panel-in {
   from { opacity: 0; transform: translateX(10px); }
   to { opacity: 1; transform: none; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .office-panel { animation: none; }
+}
+
+.panel-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  appearance: none; cursor: pointer;
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--dim);
+  transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out);
+}
+.panel-close:hover { background: var(--raised); color: var(--text); }
+.panel-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel-close svg { stroke: currentColor; }
 
 .panel-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
 .panel-sub { font-size: 12px; color: var(--dim); margin-top: -6px; }
@@ -141,7 +168,7 @@
 .panel-error {
   font-size: 12px; color: var(--red);
   padding: 8px 10px; border-radius: 8px;
-  background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3);
+  background: rgba(196, 43, 28, 0.08); border: 1px solid rgba(196, 43, 28, 0.35);
 }
 
 .panel-stop {
@@ -149,9 +176,9 @@
   appearance: none; cursor: pointer;
   background: var(--red); border: 1px solid var(--red); color: #fff;
   border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 600;
-  transition: background var(--fast) var(--ease-out);
+  transition: filter var(--fast) var(--ease-out);
 }
-.panel-stop:hover { background: #fb7185; }
+.panel-stop:hover { filter: brightness(1.15); }
 
 /* The approval gate — the only thing standing between a plan and a worker
    actually running. Kept visually loud (full-width buttons, high contrast). */

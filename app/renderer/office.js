@@ -133,6 +133,16 @@
     return { x: cssX / camera.zoom + camera.x, y: cssY / camera.zoom + camera.y };
   }
 
+  // Selection reducer — pure, so the panel's close/swap behavior (JOB 1:
+  // close button, Escape, clicking a different agent) can be verified
+  // without a DOM. The DOM layer's selectAgent()/clearSelection() both funnel
+  // through this so there is exactly one place selection state changes.
+  function nextSelection(action) {
+    if (!action || action.type === 'close') return null;
+    if (action.type === 'select') return { kind: action.kind, id: action.id };
+    return null;
+  }
+
   const HIT_RADIUS = 16;
   function hitTestAgent(agents, worldX, worldY) {
     let best = null;
@@ -214,6 +224,15 @@
     const stepAgent = findAgentForStep(steps[0], agents);
     assert(stepAgent && stepAgent.id === 'a1', 'findAgentForStep resolves the step.agent id back to a roster agent');
 
+    // selection reducer — models the office panel's close/swap behavior
+    // (JOB 1) without a DOM.
+    const afterA1 = nextSelection({ type: 'select', kind: 'agent', id: 'a1' });
+    assert(afterA1 && afterA1.id === 'a1', 'selecting an agent sets the selection');
+    const afterClose = nextSelection({ type: 'close' });
+    assert(afterClose === null, 'close clears selection');
+    const afterA2 = nextSelection({ type: 'select', kind: 'agent', id: 'a2' });
+    assert(afterA2.id === 'a2' && afterA1.id === 'a1', 'selecting another agent replaces the selection rather than getting stuck on the first');
+
     // instruction/plan field fallback: the documented contract name wins,
     // the real backend's sibling field name (task/plan) is the fallback.
     assert(stepInstruction({ instruction: 'do x', task: 'ignored' }) === 'do x', 'stepInstruction prefers the documented field');
@@ -248,25 +267,85 @@
   // ==========================================================================
   if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.getElementById) {
     const MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace";
+
+    // Tokens come from the VS Code Light Modern theme defined in styles.css —
+    // read live off the root element rather than re-guessing hex values here,
+    // so office.js can never drift from the rest of the app's palette.
+    function cssVar(name, fallback) {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name);
+      return v && v.trim() ? v.trim() : fallback;
+    }
     const COLOR = {
-      bg: '#020617', panel: '#0f172a', raised: '#1e293b', line: '#1e293b',
-      text: '#f8fafc', dim: '#94a3b8', muted: '#64748b',
-      cyan: '#22d3ee', amber: '#f59e0b', green: '#22c55e', red: '#f43f5e',
+      bg: cssVar('--bg', '#ffffff'), panel: cssVar('--panel', '#f8f8f8'),
+      raised: cssVar('--raised', '#f3f3f3'), line: cssVar('--line', '#e5e5e5'),
+      text: cssVar('--text', '#1f1f1f'), dim: cssVar('--dim', '#616161'),
+      muted: cssVar('--muted', '#8b8b8b'), accent: cssVar('--accent', '#005fb8'),
+      green: cssVar('--green', '#107c10'), amber: cssVar('--amber', '#946600'),
+      red: cssVar('--red', '#c42b1c'),
+      // Not a locked token — the spec calls for a warm off-white floor
+      // (distinct from --bg white) so rooms read as rooms against it.
+      floor: '#faf8f5',
     };
     const STATUS_TEXT_COLOR = {
-      idle: COLOR.dim, working: COLOR.amber, streaming: COLOR.cyan,
+      idle: COLOR.dim, working: COLOR.amber, streaming: COLOR.accent,
       needs_review: COLOR.green, failed: COLOR.red,
     };
+
+    // Gather-style room identity: fill/border per room name (lowercased),
+    // falling back to the neutral raised/line surface for anything unmapped.
+    const ROOM_COLORS = {
+      'corner office': { fill: '#fff4d6', border: '#d9a93a' },
+      'executive': { fill: '#f0e6ff', border: '#9b6fd4' },
+      'architecture': { fill: '#ddf3f5', border: '#4c9fb0' },
+      'delivery': { fill: '#e3f5e3', border: '#4a9d4a' },
+      'security': { fill: '#ffe6e6', border: '#cf6b7a' },
+      'project management': { fill: '#ffeeda', border: '#d9832f' },
+      'product': { fill: '#fce4f0', border: '#cf6699' },
+      'engineering — web': { fill: '#e3efff', border: '#5484c9' },
+      'engineering — infra': { fill: '#e6ebf5', border: '#6a7fae' },
+      'engineering — data': { fill: '#ddf0f7', border: '#4494b5' },
+      'engineering — mobile': { fill: '#edf7dd', border: '#84b545' },
+      'engineering — platform': { fill: '#e8e6fb', border: '#7d71c7' },
+      'engineering — specialty': { fill: '#f2ebe3', border: '#a8825c' },
+      'lounge': { fill: '#f5f2ee', border: '#bbae9e' },
+    };
+    const ROOM_FALLBACK = { fill: COLOR.raised, border: COLOR.line };
+    function roomColors(roomName) {
+      return ROOM_COLORS[String(roomName || '').toLowerCase()] || ROOM_FALLBACK;
+    }
+
     const TAU = Math.PI * 2;
     const DESK_W = 30, DESK_H = 16;
-    const BEAM_MS = 600;
+    const BEAM_MS = 700;
     const PULSE_MS = 1400;
     const PAN_STEP = 48;
+    const BOB_PERIOD_MS = 2600; // idle breathing — slow, 1-2px
+    const EASE_ROOM_HEAT_MS = 220;
+    const EASE_HOVER_MS = 140;
 
     function withAlpha(hex, a) {
       const n = parseInt(hex.slice(1), 16);
       const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
       return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+
+    // Darkens a hex color toward black by `amt` (0..1) — used to derive
+    // furniture colors from a room's border tone so a desk on a pale fill
+    // reads as visibly darker rather than a same-shade tint.
+    function darken(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const f = (c) => Math.max(0, Math.round(c * (1 - amt)));
+      return 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')';
+    }
+
+    // FNV-1a-ish string hash → stable per-agent phase offset (0..TAU) so the
+    // idle-bob animation isn't synchronized across every agent.
+    function idHash(id) {
+      let h = 0;
+      const s = String(id);
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      return h;
     }
 
     function roundRectPath(ctx, x, y, w, h, r) {
@@ -287,10 +366,20 @@
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let reducedMotion = motionQuery.matches;
-    motionQuery.addEventListener('change', (e) => { reducedMotion = e.matches; draw(); });
+    motionQuery.addEventListener('change', (e) => {
+      reducedMotion = e.matches;
+      // Beams are inherently transient (a delegation just happened or it
+      // didn't) — there's no meaningful "static end state" for one still in
+      // flight, so drop it rather than leaving a stray dot frozen on screen
+      // once the loop that would otherwise expire it stops.
+      if (reducedMotion) { animations = []; stopLoop(); } else { ensureLoop(); }
+      draw();
+    });
 
     let booted = false;
+    let officeVisible = false; // the Office tab is the active view right now
     let roster = null;      // { rooms, agents, bounds }
+    let roomsById = new Map();
     let appState = null;    // { tasks, steps, activeCount, costToday }
     let dpr = Math.max(1, window.devicePixelRatio || 1);
     let camera = { x: 0, y: 0, zoom: 1 };
@@ -305,9 +394,25 @@
 
     let animations = [];    // [{ kind:'beam', x1,y1,x2,y2, start }]
     let rafHandle = null;
+    let lastDrawTime = null;
+    const roomHeat = new Map(); // roomId -> eased 0..1 "how active" glow amount
+    const hoverT = new Map();   // agentId -> eased 0..1 hover lift/nametag amount
     const prevStepState = new Map(); // stepId -> last-seen state, to detect entry into 'working'
     const lastChunkAt = new Map();   // stepId -> performance.now() of most recent stream chunk
     const STREAM_WINDOW_MS = 1200;   // recent chunk => draw as streaming instead of plain working
+
+    // Eases a 0..1 value toward `target`, frame-rate independent via dt.
+    // Under reduced motion, every caller snaps straight to `target` instead
+    // (this is what "render the static end state" means for room heat and
+    // hover lift/nametag opacity).
+    function ease(map, key, target, now, rateMs) {
+      if (reducedMotion) { map.set(key, target); return target; }
+      const prev = map.has(key) ? map.get(key) : target;
+      const dt = lastDrawTime == null ? 0 : Math.min(64, now - lastDrawTime);
+      const next = prev + (target - prev) * Math.min(1, dt / rateMs);
+      map.set(key, next);
+      return next;
+    }
 
     // The real backend (app/office.js) never sets step.state to 'streaming' —
     // 'working' covers both "assigned, thinking" and "actively producing
@@ -326,7 +431,13 @@
 
     // ---------------- boot (lazy — the Office view triggers this) ----------------
 
-    document.addEventListener('view:change', (e) => { if (e.detail === 'office') boot(); });
+    // The Office tab's visibility gates the animation loop: idle-bob means
+    // the loop now runs continuously while the tab is visible, so it must
+    // stop the instant the tab isn't (JOB 3).
+    document.addEventListener('view:change', (e) => {
+      officeVisible = e.detail === 'office';
+      if (officeVisible) { boot(); ensureLoop(); } else { stopLoop(); }
+    });
 
     async function boot() {
       if (booted || !canvas || !ctx) return;
@@ -340,6 +451,7 @@
       } catch {
         roster = { rooms: [], agents: [], bounds: { w: 40, h: 30 } };
       }
+      roomsById = new Map(roster.rooms.map((r) => [r.id, r]));
       cacheAgentLabels();
       focusedAgentId = roster.agents[0] ? roster.agents[0].id : null;
 
@@ -357,6 +469,7 @@
       updateMeters();
       maybeAutoOpenApproval(appState.tasks || []);
       draw();
+      ensureLoop();
     }
 
     function cacheAgentLabels() {
@@ -383,7 +496,7 @@
       if (listMode) renderList();
       if (selected) renderPanel();
       draw();
-      if (!reducedMotion && (hasWorkingSteps() || animations.length)) ensureLoop();
+      ensureLoop();
     }
 
     function handleStream(d) {
@@ -407,12 +520,8 @@
       }
       // A chunk means this step is live right now — make sure the
       // streaming-dots shape (see liveStatus) gets drawn and keeps ticking.
-      if (!reducedMotion) ensureLoop();
+      ensureLoop();
       draw();
-    }
-
-    function hasWorkingSteps() {
-      return !!(appState && (appState.steps || []).some((s) => s.state === 'working'));
     }
 
     function detectNewWorkAndBeam(steps) {
@@ -442,7 +551,7 @@
       if (selected) return;
       const pending = tasks.find((t) => t.state === 'awaiting_approval');
       if (pending) {
-        selected = { kind: 'task', id: pending.id };
+        selected = nextSelection({ type: 'select', kind: 'task', id: pending.id });
         showPanel();
         renderPanel();
       }
@@ -455,20 +564,28 @@
       if (burnEl) burnEl.textContent = '$' + (appState.costToday || 0).toFixed(2) + ' today';
     }
 
-    // ---------------- animation loop — only runs while something moves ----------------
+    // ---------------- animation loop ----------------
+    // Gated on officeVisible + !reducedMotion in one place (ensureLoop), so
+    // every caller can just call it unconditionally. Idle-bob means the loop
+    // now runs continuously whenever the Office tab is visible, but it still
+    // stops the instant the tab is hidden (view:change) or reduced-motion
+    // turns on (motionQuery listener above) — see stopLoop().
 
     function ensureLoop() {
-      if (rafHandle != null) return;
+      if (rafHandle != null || !officeVisible || reducedMotion) return;
       rafHandle = requestAnimationFrame(tick);
+    }
+
+    function stopLoop() {
+      if (rafHandle != null) { cancelAnimationFrame(rafHandle); rafHandle = null; }
     }
 
     function tick(now) {
       rafHandle = null;
       animations = animations.filter((a) => now - a.start < BEAM_MS);
       draw(now);
-      if (!reducedMotion && (hasWorkingSteps() || animations.length)) {
-        rafHandle = requestAnimationFrame(tick);
-      }
+      lastDrawTime = now;
+      ensureLoop();
     }
 
     // ---------------- draw ----------------
@@ -479,7 +596,7 @@
       const w = canvas.clientWidth, h = canvas.clientHeight;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = COLOR.bg;
+      ctx.fillStyle = COLOR.floor; // warm off-white between rooms, not --bg white
       ctx.fillRect(0, 0, w, h);
 
       ctx.save();
@@ -487,34 +604,56 @@
       ctx.translate(-camera.x, -camera.y);
 
       const steps = (appState && appState.steps) || [];
-      for (const room of roster.rooms) drawRoom(room, roomIsActive(room, roster.agents, steps));
+      for (const room of roster.rooms) drawRoom(room, roomIsActive(room, roster.agents, steps), now);
       for (const agent of roster.agents) drawAgent(agent, steps, now);
       drawBeams(now);
 
       ctx.restore();
     }
 
-    function drawRoom(room, isActive) {
+    function drawRoom(room, isActive, now) {
+      const colors = roomColors(room.name);
       const x = room.x * GRID, y = room.y * GRID, w = room.w * GRID, h = room.h * GRID;
-      ctx.globalAlpha = isActive ? 1 : 0.45;
+      const heat = ease(roomHeat, room.id, isActive ? 1 : 0, now, EASE_ROOM_HEAT_MS);
+
       roundRectPath(ctx, x, y, w, h, 10);
-      ctx.fillStyle = COLOR.panel;
+      ctx.fillStyle = colors.fill;
       ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = COLOR.line;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = colors.border;
       ctx.stroke();
-      if (isActive) {
+
+      // "room heat" — an animated (not snapped) amber glow while an agent in
+      // the room is working/streaming.
+      if (heat > 0.01) {
         roundRectPath(ctx, x + 2, y + 2, w - 4, h - 4, 9);
-        ctx.strokeStyle = withAlpha(COLOR.cyan, 0.35);
+        ctx.strokeStyle = withAlpha(COLOR.amber, 0.55 * heat);
         ctx.lineWidth = 3;
         ctx.stroke();
       }
-      ctx.globalAlpha = 1;
+
       ctx.fillStyle = COLOR.dim;
       ctx.font = '600 11px ' + MONO;
       ctx.textBaseline = 'top';
       ctx.textAlign = 'left';
       ctx.fillText(room.name, x + 10, y + 8);
+
+      drawPlant(room, colors);
+    }
+
+    // A potted plant tucked in the room's far corner — decorative furniture,
+    // skipped in rooms too small to fit it without crowding a desk.
+    function drawPlant(room, colors) {
+      if (room.w < 3 || room.h < 3) return;
+      const px = (room.x + room.w) * GRID - 14, py = (room.y + room.h) * GRID - 12;
+      ctx.fillStyle = darken(colors.border, 0.4);
+      ctx.fillRect(px - 5, py - 2, 10, 7);
+      ctx.fillStyle = COLOR.green;
+      [[-4, -3], [4, -3], [0, -8]].forEach(([dx, dy]) => {
+        ctx.beginPath();
+        ctx.arc(px + dx, py + dy, 4, 0, TAU);
+        ctx.fill();
+      });
     }
 
     function drawAgent(agent, steps, now) {
@@ -522,17 +661,34 @@
       const p = gridToPixel(agent.desk.x, agent.desk.y);
       const deskX = p.x - DESK_W / 2, deskY = p.y;
       const ac = agentAvatarCenter(agent);
+      const room = roomsById.get(agent.roomId);
+      const colors = room ? roomColors(room.name) : ROOM_FALLBACK;
+      const deskColor = darken(colors.border, 0.15);
+      const deskEdgeColor = darken(colors.border, 0.4);
+      const monIdleColor = darken(colors.border, 0.6);
+
+      // idle "breathing" — 1-2px, slow, phase-staggered per agent so the
+      // office doesn't animate in lockstep (JOB 3).
+      const bob = reducedMotion ? 0 : Math.sin((now / BOB_PERIOD_MS) * TAU + (idHash(agent.id) % 1000) / 1000 * TAU) * 1.5;
+
+      // hover — eased lift + nametag fade-in.
+      const hovered = hoverAgentId === agent.id;
+      const ht = ease(hoverT, agent.id, hovered ? 1 : 0, now, EASE_HOVER_MS);
+      const isSelected = selected && selected.kind === 'agent' && selected.id === agent.id;
+      const lift = ht * 3;
+      const vx = ac.x, vy = ac.y + bob - lift;
 
       // chair
       ctx.beginPath();
       ctx.arc(p.x, deskY + DESK_H + 5, 5, 0, Math.PI, false);
-      ctx.strokeStyle = COLOR.line;
+      ctx.strokeStyle = deskEdgeColor;
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // desk (1px darker edge for flat-shaded depth)
-      ctx.fillStyle = COLOR.raised;
-      ctx.strokeStyle = COLOR.panel;
+      // desk — darkened off the room's own border tone so it reads as
+      // furniture, not a same-shade tint of the floor.
+      ctx.fillStyle = deskColor;
+      ctx.strokeStyle = deskEdgeColor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.rect(deskX, deskY, DESK_W, DESK_H);
@@ -541,40 +697,51 @@
 
       // monitor
       const monW = 10, monH = 7;
-      ctx.fillStyle = (status === 'working' || status === 'streaming') ? withAlpha(COLOR.cyan, 0.55) : '#0b1220';
+      const working = status === 'working' || status === 'streaming';
+      ctx.fillStyle = working ? withAlpha(COLOR.accent, 0.6) : monIdleColor;
       ctx.fillRect(p.x - monW / 2, deskY - monH + 2, monW, monH);
-      ctx.strokeStyle = COLOR.panel;
+      ctx.strokeStyle = deskEdgeColor;
       ctx.strokeRect(p.x - monW / 2, deskY - monH + 2, monW, monH);
+
+      // small animated activity indicator over the desk while working.
+      if (working) {
+        const pulseT = reducedMotion ? 0.5 : (Math.sin((now / 500) * TAU) + 1) / 2;
+        ctx.beginPath();
+        ctx.arc(p.x + monW / 2 + 5, deskY - monH + 1, 2.2, 0, TAU);
+        ctx.fillStyle = withAlpha(COLOR.amber, 0.5 + pulseT * 0.5);
+        ctx.fill();
+      }
 
       // avatar: head + body capsule, ~14px tall
       ctx.beginPath();
-      ctx.arc(ac.x, ac.y - 5, 3.4, 0, TAU);
-      ctx.fillStyle = '#cbd5e1';
+      ctx.arc(vx, vy - 5, 3.4, 0, TAU);
+      ctx.fillStyle = '#4b4b4b';
       ctx.fill();
-      roundRectPath(ctx, ac.x - 4, ac.y - 1, 8, 8, 3);
-      ctx.fillStyle = '#94a3b8';
+      roundRectPath(ctx, vx - 4, vy - 1, 8, 8, 3);
+      ctx.fillStyle = '#6e6e6e';
       ctx.fill();
 
-      drawStatusMark(status, ac.x + 7, ac.y - 7, now);
+      drawStatusMark(status, vx + 7, vy - 7, now);
 
-      if (hoverAgentId === agent.id || (selected && selected.kind === 'agent' && selected.id === agent.id)) {
+      if (hovered || isSelected) {
         ctx.beginPath();
-        ctx.arc(ac.x, ac.y - 2, 12, 0, TAU);
-        ctx.strokeStyle = COLOR.cyan;
+        ctx.arc(vx, vy - 2, 12, 0, TAU);
+        ctx.strokeStyle = COLOR.accent;
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
       if (focusedAgentId === agent.id && document.activeElement === canvas) {
         ctx.beginPath();
-        ctx.arc(ac.x, ac.y - 2, 15, 0, TAU);
+        ctx.arc(vx, vy - 2, 15, 0, TAU);
         ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = COLOR.cyan;
+        ctx.strokeStyle = COLOR.accent;
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.setLineDash([]);
       }
 
-      drawNametag(agent, ac.x, ac.y - 22, status);
+      const nametagAlpha = Math.max(ht, isSelected ? 1 : 0, (focusedAgentId === agent.id && document.activeElement === canvas) ? 1 : 0);
+      drawNametag(agent, vx, vy - 22, status, nametagAlpha);
     }
 
     // STATUS — shape carries the meaning, color is a reinforcement only.
@@ -603,7 +770,7 @@
           break;
         }
         case 'streaming':
-          ctx.fillStyle = COLOR.cyan;
+          ctx.fillStyle = COLOR.accent;
           for (let i = -1; i <= 1; i++) {
             ctx.beginPath();
             ctx.arc(cx + i * 5, cy, 1.6, 0, TAU);
@@ -626,34 +793,57 @@
       }
     }
 
-    function drawNametag(agent, cx, y, status) {
+    // Nametags are hidden by default (Gather-style) and fade in on hover,
+    // selection, or keyboard focus — `alpha` is the eased 0..1 amount.
+    function drawNametag(agent, cx, y, status, alpha) {
+      if (alpha <= 0.01) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.font = '500 10px ' + MONO;
       const textW = agent.labelWidth != null ? agent.labelWidth : ctx.measureText(agent.label).width;
       const padX = 6, h = 14;
       const w = textW + padX * 2;
       const x = cx - w / 2;
       roundRectPath(ctx, x, y, w, h, 7);
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
       ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = COLOR.line;
+      ctx.stroke();
       ctx.fillStyle = STATUS_TEXT_COLOR[status] || COLOR.dim;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
       ctx.fillText(agent.label, cx, y + h / 2 + 0.5);
       ctx.textAlign = 'left';
+      ctx.restore();
     }
 
+    // Delegation beam: a travelling dot along the Corner Office -> desk path
+    // with a fading trail behind it, over BEAM_MS (~700ms).
     function drawBeams(now) {
       for (const b of animations) {
         if (b.kind !== 'beam') continue;
         const t = Math.min(1, (now - b.start) / BEAM_MS);
         const ex = b.x1 + (b.x2 - b.x1) * t;
         const ey = b.y1 + (b.y2 - b.y1) * t;
+
         ctx.beginPath();
         ctx.moveTo(b.x1, b.y1);
         ctx.lineTo(ex, ey);
-        ctx.strokeStyle = withAlpha(COLOR.cyan, 1 - t * 0.5);
+        ctx.strokeStyle = withAlpha(COLOR.accent, 0.32 * (1 - t * 0.5));
         ctx.lineWidth = 2;
         ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ex, ey, 6, 0, TAU);
+        ctx.strokeStyle = withAlpha(COLOR.accent, 0.4);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3.5, 0, TAU);
+        ctx.fillStyle = COLOR.accent;
+        ctx.fill();
       }
     }
 
@@ -683,8 +873,11 @@
 
     // ---------------- selection / panel ----------------
 
+    // Clicking a different agent while the panel is open swaps its content
+    // (nextSelection just overwrites, never merges) rather than getting
+    // stuck — see the pure `nextSelection` reducer and its self-test.
     function selectAgent(agent) {
-      selected = { kind: 'agent', id: agent.id };
+      selected = nextSelection({ type: 'select', kind: 'agent', id: agent.id });
       focusedAgentId = agent.id;
       showPanel();
       renderPanel();
@@ -692,14 +885,18 @@
     }
 
     function clearSelection() {
-      selected = null;
+      selected = nextSelection({ type: 'close' });
       panelOutputEl = null;
       hidePanel();
       draw();
     }
 
-    function showPanel() { if (panel) panel.hidden = false; }
-    function hidePanel() { if (panel) panel.hidden = true; }
+    // The panel docks beside the canvas (see office.css: .office-stage is a
+    // flex row, .office-panel is a flex item, not position:absolute), so
+    // opening/closing it changes the canvas's own box — resize it so the
+    // pixel buffer and hit-testing stay in sync with the new layout.
+    function showPanel() { if (panel) panel.hidden = false; resizeCanvas(); }
+    function hidePanel() { if (panel) panel.hidden = true; resizeCanvas(); }
 
     function el(tag, cls, text) {
       const e = document.createElement(tag);
@@ -708,10 +905,33 @@
       return e;
     }
 
+    function closeButton() {
+      const NS = 'http://www.w3.org/2000/svg';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'panel-close';
+      btn.setAttribute('aria-label', 'Close');
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 16 16');
+      svg.setAttribute('width', '16');
+      svg.setAttribute('height', '16');
+      svg.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', 'M3 3 L13 13 M13 3 L3 13');
+      path.setAttribute('stroke', 'currentColor');
+      path.setAttribute('stroke-width', '1.75');
+      path.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(path);
+      btn.appendChild(svg);
+      btn.addEventListener('click', clearSelection);
+      return btn;
+    }
+
     function renderPanel() {
       if (!panel || !selected) return;
       panel.replaceChildren();
       panelOutputEl = null;
+      panel.appendChild(closeButton());
       if (selected.kind === 'agent') renderAgentPanel();
       else if (selected.kind === 'task') renderTaskPanel();
     }
@@ -837,6 +1057,14 @@
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
           e.preventDefault();
           toggleListMode();
+          return;
+        }
+        // JOB 1: Escape is the keyboard escape hatch out of the panel —
+        // the click-empty-canvas dismissal isn't reachable once the panel
+        // covers that space, so this (plus the close button) is required.
+        if (e.key === 'Escape' && selected) {
+          e.preventDefault();
+          clearSelection();
         }
       });
 
@@ -934,7 +1162,7 @@
     GRID, gridToPixel, agentAvatarCenter, roomCenterPixel, findRoomByName,
     findAgentForStep, stepMatchesAgent, latestStepForAgent, resolveStepStatus,
     agentStatus, STATUS_SHAPE, shapeForStatus, roomIsActive, clamp, clampCamera,
-    screenToWorld, hitTestAgent, stepInstruction, taskPlan, __selftest,
+    screenToWorld, hitTestAgent, stepInstruction, taskPlan, nextSelection, __selftest,
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = publicApi;

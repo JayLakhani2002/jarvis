@@ -1,0 +1,102 @@
+/* Tasks, Schedules, Tools, Pipelines, Content, Businesses — the six sections
+   that were dead nav buttons. Light-theme tokens only, defined in styles.css
+   :root; nothing here is hardcoded. */
+
+.section-head {
+  flex: 0 0 auto;
+  padding: 20px 26px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.section-head h2 {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0;
+  font-size: 15px; font-weight: 600; color: var(--text);
+}
+.section-head h2 svg {
+  width: 18px; height: 18px; flex: 0 0 auto;
+  stroke: var(--accent); fill: none;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+.section-head p {
+  margin: 5px 0 0; font-size: 12px; color: var(--dim);
+}
+
+.section-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 18px 26px 26px;
+}
+
+/* honest empty state — used by Tools/Pipelines/Content and by Tasks/
+   Schedules/Businesses before their first load resolves or comes back empty */
+.empty-state {
+  color: var(--dim);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+/* ---------------- data table: Tasks, Schedules ---------------- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font: 600 11px/1.4 var(--mono);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+}
+.data-table td {
+  padding: 10px;
+  color: var(--text);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+.data-table tbody tr {
+  transition: background var(--fast) var(--ease-out);
+}
+.data-table tbody tr:hover {
+  background: var(--raised);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.dot.green { background: var(--green); }
+.dot.red { background: var(--red); }
+.dot.grey { background: var(--muted); }
+
+/* ---------------- businesses: card grid ---------------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.biz-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+  transition: border-color var(--fast) var(--ease-out);
+}
+.biz-card:hover {
+  border-color: var(--accent-soft);
+}
+.biz-title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.biz-meta {
+  margin-top: 4px;
+  font: 11px/1.5 var(--mono);
+  color: var(--dim);
+}

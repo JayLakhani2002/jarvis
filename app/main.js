@@ -217,8 +217,54 @@ ipcMain.handle('jarvis:status', async () => {
     brief = (await fs.stat(p)).mtime.toISOString();
   } catch { /* no briefing yet */ }
 
-  return { jobs, brief, session: sessionId || null };
+  return { jobs, schedules: await scheduleTable(jobs), brief, session: sessionId || null };
 });
+
+// Reads the plist sources directly (they are the truth — install.sh loads them
+// into ~/Library/LaunchAgents unchanged) and merges in each job's live state
+// from `jobs`, so the Schedules tab can show a job that's defined but not
+// currently loaded, not just what launchctl happens to know about right now.
+function describeSchedule(xml) {
+  if (/<key>KeepAlive<\/key>\s*<true\s*\/>/.test(xml)) return 'always on';
+  const interval = xml.match(/<key>StartInterval<\/key><integer>(\d+)<\/integer>/);
+  if (interval) {
+    const secs = Number(interval[1]);
+    return secs % 3600 === 0 ? `every ${secs / 3600}h` : `every ${Math.round(secs / 60)}min`;
+  }
+  const block = xml.match(/<key>StartCalendarInterval<\/key>\s*<dict>([\s\S]*?)<\/dict>/);
+  if (!block) return 'unknown';
+  const hour = (block[1].match(/<key>Hour<\/key><integer>(\d+)<\/integer>/) || [])[1] || '0';
+  const minute = (block[1].match(/<key>Minute<\/key><integer>(\d+)<\/integer>/) || [])[1] || '0';
+  const weekday = block[1].match(/<key>Weekday<\/key><integer>(\d+)<\/integer>/);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const day = weekday ? days[Number(weekday[1])] + ' ' : '';
+  return `${day}${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+}
+
+async function scheduleTable(jobs) {
+  const dir = path.join(REPO, 'launchd');
+  let files = [];
+  try { files = (await fs.readdir(dir)).filter((f) => f.endsWith('.plist')); }
+  catch { return []; } // launchd/ missing or unreadable — empty table, not a crash
+
+  const jobsByLabel = new Map(jobs.map((j) => [j.label, j]));
+  const out = [];
+  for (const f of files) {
+    try {
+      const xml = await fs.readFile(path.join(dir, f), 'utf8');
+      const label = ((xml.match(/<key>Label<\/key><string>([^<]+)<\/string>/) || [])[1] || f)
+        .replace(/^com\.jaysbrain\./, '');
+      const j = jobsByLabel.get(label);
+      out.push({
+        label,
+        schedule: describeSchedule(xml),
+        loaded: !!j,
+        exit: j ? j.exit : null,
+      });
+    } catch { /* one unreadable plist shouldn't blank the whole table */ }
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label));
+}
 
 // ---------------------------------------------------------------- vault
 
@@ -231,10 +277,15 @@ const inVault = (p) => {
 ipcMain.handle('vault:list', async (_e, rel = '') => {
   const dir = inVault(rel);
   const entries = await fs.readdir(dir, { withFileTypes: true });
-  return entries
-    .filter((d) => !d.name.startsWith('.'))
-    .map((d) => ({ name: d.name, dir: d.isDirectory(), rel: path.join(rel, d.name) }))
-    .sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : a.dir ? -1 : 1));
+  const out = [];
+  for (const d of entries) {
+    if (d.name.startsWith('.')) continue;
+    let mtime = null;
+    try { mtime = (await fs.stat(path.join(dir, d.name))).mtime.toISOString(); }
+    catch { /* stat race (iCloud eviction etc) — keep the entry, just no date */ }
+    out.push({ name: d.name, dir: d.isDirectory(), rel: path.join(rel, d.name), mtime });
+  }
+  return out.sort((a, b) => (a.dir === b.dir ? a.name.localeCompare(b.name) : a.dir ? -1 : 1));
 });
 
 // iCloud/Obsidian can hold a note locked (EDEADLK) — retry rather than lie

@@ -192,10 +192,131 @@ document.querySelectorAll('.nav-item[data-view]').forEach((btn) => {
       s.hidden = s.id !== `view-${view}`;
     });
     if (view === 'vault') loadTree('');
+    if (view === 'tasks') loadTasks();
+    if (view === 'schedules') loadSchedules();
+    if (view === 'businesses') loadBusinesses();
     // The Office owns its own lifecycle; office.js listens for this.
     document.dispatchEvent(new CustomEvent('view:change', { detail: view }));
   });
 });
+
+// ---------------- shared list/table helpers (Tasks, Schedules, Businesses)
+function emptyState(text) {
+  const el = document.createElement('div');
+  el.className = 'empty-state';
+  el.textContent = text;
+  return el;
+}
+
+function dot(cls) {
+  const el = document.createElement('span');
+  el.className = 'dot ' + cls;
+  return el;
+}
+
+function dataTable(headers, rows) {
+  const t = document.createElement('table');
+  t.className = 'data-table';
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  headers.forEach((h) => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr);
+  const tbody = document.createElement('tbody');
+  rows.forEach((cells) => {
+    const tr = document.createElement('tr');
+    cells.forEach((c) => {
+      const td = document.createElement('td');
+      if (c instanceof Node) td.appendChild(c);
+      else td.textContent = c;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  t.append(thead, tbody);
+  return t;
+}
+
+// ---------------- tasks — reuses the Office's own state, no new IPC needed
+async function loadTasks() {
+  const el = $('tasks-body');
+  el.replaceChildren(emptyState('Loading…'));
+  let tasks = [];
+  try { tasks = (await window.office.state()).tasks || []; } catch { tasks = []; }
+
+  if (!tasks.length) {
+    el.replaceChildren(emptyState('No tasks yet. Give the office a task from the Agents tab.'));
+    return;
+  }
+  tasks = [...tasks].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const rows = tasks.map((t) => [t.prompt, t.state, String(t.stepIds.length), '$' + t.costUsd.toFixed(2)]);
+  el.replaceChildren(dataTable(['Prompt', 'State', 'Steps', 'Cost'], rows));
+}
+
+// ---------------- schedules — the 14 launchd jobs, merged with live status
+async function loadSchedules() {
+  const el = $('schedules-body');
+  el.replaceChildren(emptyState('Loading…'));
+  let jobs = [];
+  try { jobs = (await window.jarvis.status()).schedules || []; } catch { jobs = []; }
+
+  if (!jobs.length) {
+    el.replaceChildren(emptyState('No launchd jobs found.'));
+    return;
+  }
+  const rows = jobs.map((j) => [
+    dot(!j.loaded ? 'grey' : j.exit === 0 ? 'green' : 'red'),
+    j.label,
+    j.schedule,
+    !j.loaded ? 'not loaded' : j.exit === 0 ? 'ok' : `exit ${j.exit}`,
+  ]);
+  el.replaceChildren(dataTable(['', 'Job', 'Schedule', 'Status'], rows));
+}
+
+// ---------------- businesses — project notes from the vault, read-only
+async function loadBusinesses() {
+  const el = $('businesses-body');
+  el.replaceChildren(emptyState('Loading…'));
+
+  const dirs = [['03 Projects', 'Projects'], ['06 Company', 'Company']];
+  const notes = [];
+  for (const [rel, section] of dirs) {
+    try {
+      for (const e of await window.jarvis.vaultList(rel)) {
+        if (!e.dir && e.name.endsWith('.md')) {
+          notes.push({ name: e.name.replace(/\.md$/, ''), section, mtime: e.mtime });
+        }
+      }
+    } catch { /* dir missing or vault-locked (EDEADLK) — skip this section, not the tab */ }
+  }
+
+  if (!notes.length) {
+    el.replaceChildren(emptyState('No project notes found in the vault.'));
+    return;
+  }
+  notes.sort((a, b) => (b.mtime || '').localeCompare(a.mtime || ''));
+
+  const grid = document.createElement('div');
+  grid.className = 'card-grid';
+  for (const n of notes) {
+    const card = document.createElement('div');
+    card.className = 'biz-card';
+    const title = document.createElement('div');
+    title.className = 'biz-title';
+    title.textContent = n.name;
+    const meta = document.createElement('div');
+    meta.className = 'biz-meta';
+    meta.textContent = n.section + (n.mtime
+      ? ' · ' + new Date(n.mtime).toLocaleDateString([], { month: 'short', day: 'numeric' })
+      : '');
+    card.append(title, meta);
+    grid.appendChild(card);
+  }
+  el.replaceChildren(grid);
+}
 
 // ---------------- vault
 async function loadTree(rel) {
