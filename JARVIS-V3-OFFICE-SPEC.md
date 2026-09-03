@@ -213,16 +213,23 @@ into `npm test` alongside `guard.js`, `jobs.js`, `voice.js`.
 
 ## Slices
 
-**Slice 1 — this week.** Floorplan renders all 84 agents in department rooms; operator
-submits a prompt; boss plans on Fable 5.1; plan card approve/reject; workers spawn on
-Sonnet 5 with concurrency cap; live status glyphs; click-to-inspect side panel; stop
-control; SQLite persistence. Read-only output — **no file writing yet**.
+**Slice 1 — this week.** The office, live and read-only.
 
-**Slice 2 — after Sept 13.** Worktree sandbox, diff viewer, land/discard, budget ceilings
-with the pause-and-ask flow, skill-scoped spawning, cost dashboard.
+Procedurally drawn floorplan with all 84 agents in department rooms; stable seating;
+room heat; empty state. Operator submits a prompt; boss plans on Fable 5.1; plan card
+approve/reject; workers spawn on Sonnet 5 behind the concurrency cap; delegation beams;
+live status glyphs and streaming output; desk artifacts on completion; the waiting line;
+click-to-inspect side panel with a stop control; avatar walk; `⌘K` jump-to-agent; `⌘L`
+list view; burn display (**showing** spend, not yet enforcing); SQLite persistence.
 
-Slice 1 is genuinely useful alone: it makes the existing engine visible and controllable.
-Slice 2 is what makes it write code.
+Output is read-only — **no file writing yet**. Every state transition is persisted from
+day one, so Slice 2's scrubber is a read over data Slice 1 already wrote.
+
+**Slice 2 — after Sept 13.** Worktree sandbox, diff viewer, land/discard, budget ceiling
+*enforcement* with the pause-and-ask flow, skill-scoped spawning, time scrubber.
+
+Slice 1 is genuinely useful alone: it makes the engine you already have visible and
+controllable. Slice 2 is what lets it write code.
 
 ## Files reference
 
@@ -245,8 +252,17 @@ scratch directory that can be deleted wholesale.
 
 ## Effort
 
-Slice 1: ~4h floorplan renderer + ~3h orchestration/state machine + ~2h IPC and panel +
-~1h persistence + ~1h self-checks ≈ **11h**. Slice 2 ≈ 8h.
+Slice 1: ~5h procedural floorplan renderer (rooms, furniture primitives, seating, camera)
++ ~2h motion and affordances (beams, room heat, artifacts, waiting line, avatar walk)
++ ~3h orchestration and state machine + ~2h IPC and side panel + ~1h persistence
++ ~1h `⌘K` / `⌘L` + ~1h self-checks ≈ **15h**.
+
+Slice 2: ~3h worktree and diff viewer + ~2h budget enforcement + ~2h time scrubber
++ ~1h skill-scoped spawning ≈ **8h**.
+
+The Slice 1 number went up from 11h because the departures above are real work. They are
+also most of what makes this an instrument rather than a screensaver, so the trade is
+worth naming explicitly rather than absorbing quietly.
 
 ## Out of scope
 
@@ -256,14 +272,69 @@ Slice 1: ~4h floorplan renderer + ~3h orchestration/state machine + ~2h IPC and 
 - Multi-user. One operator.
 - Running this off-machine.
 
-## Open question — art assets
+## Art direction — procedural, not a tileset
 
-The reference is Gather.town, a commercial product; its tileset cannot be copied. Three
-routes, and this is the one thing still blocking the visual build:
+**Decided: rooms are drawn procedurally on canvas from the roster data.** No purchased or
+downloaded tileset.
 
-1. **Kenney.nl CC0 top-down assets** — genuinely public domain, commercially usable,
-   decent quality, free. Least legal risk.
-2. **A paid itch.io interior tileset** — best fidelity to the reference, roughly $10-30,
-   licence must permit app use.
-3. **Generated / primitive art** — CSS and canvas shapes, no external assets, ships today
-   but will not look like your reference.
+This is not the cheap option, it is the correct one. The floorplan is a *function of*
+`~/.claude/agents/` — 84 charters today, more tomorrow, with department counts that shift
+whenever a charter is added. A hand-placed tileset map goes stale the moment the roster
+changes and every new agent becomes a map-editing chore. Generating rooms from counts
+means the office rebuilds itself and can never disagree with what is actually installed.
+
+Style: flat-shaded top-down at a fixed 32px grid, muted desaturated palette with saturation
+reserved for status (an amber pulse has to read instantly against the furniture), 1px
+darker edges for depth. Furniture is a small set of drawing primitives — desk, chair,
+monitor, plant, table, shelf, door — composed per room. No pixel-art dithering; flat shapes
+at this scale read cleaner and stay sharp on a Retina display.
+
+## Beyond the reference
+
+Gather is built for humans who are present. This office is watched by one operator
+supervising machines, so the following depart from the reference deliberately.
+
+**Delegation beams.** When the boss assigns a step, an animated line travels from the
+corner office to the worker's desk and fades. Gather has no delegation to show. This makes
+the org chart *live* and answers "what just happened" without reading anything.
+
+**Room heat.** Idle rooms sit dimmed; a room with active work brightens. With 84 agents,
+this is the single most valuable affordance on the screen — you locate work by looking,
+before reading a single name tag.
+
+**Desk artifacts.** A finished step leaves a document on the desk; a failure leaves a red
+folder. Output has a physical location, so `needs_review` is discoverable by scanning
+rather than by opening a queue.
+
+**The waiting line.** Queued steps stand in a literal line outside the boss's office. A
+backlog you can see the length of is better than a number, and it makes the concurrency
+cap self-explanatory rather than a setting you have to remember.
+
+**Burn display.** A wall panel in the lobby shows today's spend against the daily ceiling.
+Cost is the failure mode most likely to surprise an operator running 84 agents, so it gets
+permanent screen real estate rather than a menu.
+
+**Time scrubber.** A timeline along the bottom replays office state at any past moment —
+who was working, what they produced, where it failed. Every state transition is already
+persisted in SQLite, so this is a read over existing data, not new bookkeeping. Debugging
+multi-agent behavior after the fact is otherwise close to impossible.
+
+**Stable seating.** An agent's desk is deterministic — derived from a hash of its charter
+filename, so it never moves between sessions. With 84 characters, a map you can learn is
+worth more than one that packs optimally.
+
+**Jump-to-agent.** `⌘K` opens a fuzzy search over all 84; selecting one pans the camera and
+opens its panel. Spatial memory fails past a few dozen entities and hunting visually
+through six engineering pods is not a feature.
+
+**List view toggle.** `⌘L` swaps the floorplan for a dense sortable table. Honest
+admission: a floorplan is excellent for glanceable status and bad for reading detail. When
+you need to compare twelve outputs, you need rows. Both views read the same state.
+
+**Your avatar walks.** Clicking an agent walks the operator's character there rather than
+teleporting the camera. Purely cosmetic, roughly ten lines, and it preserves the feeling of
+the reference without making you navigate manually to get work done.
+
+**Empty state.** On first open, before any prompt, the boss stands in the corner office and
+every agent is grey. A visibly staffed but idle office reads as ready. An empty room reads
+as broken.
