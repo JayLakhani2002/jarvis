@@ -68,7 +68,7 @@ async function getOffice() {
     agentIds: roster.agents.map((a) => a.id),
     cwd: REPO,
     extraDirs: [VAULT],
-    onStream: (stepId, chunk) => send('office:stream', { stepId, chunk }),
+    onStream: (stepId, event) => send('office:stream', { stepId, event }),
   });
 
   office = createOffice({

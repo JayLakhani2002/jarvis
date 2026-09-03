@@ -97,25 +97,89 @@ function validatePlan(raw, agentIds) {
   return { ok: true, plan: { summary: raw.summary.trim(), steps } };
 }
 
+const MAX_INPUT_FIELD = 300; // per-field truncation for tool_use.input, so a huge prompt/file body can't flood IPC
+const MAX_TOOL_PREVIEW = 400; // truncation for tool_result preview text
+
+// Truncate every string field of a tool_use input, one level deep — no redaction, the
+// operator needs to see what their agent ran, just not all of it at once.
+function truncateInput(input) {
+  if (!input || typeof input !== 'object') return input;
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    out[k] = typeof v === 'string' && v.length > MAX_INPUT_FIELD ? v.slice(0, MAX_INPUT_FIELD) : v;
+  }
+  return out;
+}
+
+// tool_result content is a string or an array of Messages-API blocks (text/image/...);
+// only text blocks render as a preview.
+function toolResultPreview(content) {
+  const s = typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? content.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('\n')
+      : '';
+  return s.length > MAX_TOOL_PREVIEW ? s.slice(0, MAX_TOOL_PREVIEW) : s;
+}
+
 /**
  * Drain an SDK query, returning collected text and cost.
- * onChunk (optional) receives text as it streams.
+ * onEvent (optional) receives one of the office:stream events as they happen:
+ *   { kind:'text', text } | { kind:'thinking', text } |
+ *   { kind:'tool', id, name, input } | { kind:'tool_result', id, ok, preview } |
+ *   { kind:'done', costUsd, ms, turns, tokens }
  */
-async function drain(q, onChunk) {
+async function drain(q, onEvent) {
   let text = '';
   let costUsd = 0;
   let error = null;
+  const emit = onEvent || (() => {});
   for await (const msg of q) {
     if (msg.type === 'assistant') {
       for (const block of msg.message.content) {
         if (block.type === 'text' && block.text) {
           text += block.text;
-          if (onChunk) onChunk(block.text);
+          emit({ kind: 'text', text: block.text });
+        } else if (block.type === 'thinking' && block.thinking) {
+          emit({ kind: 'thinking', text: block.thinking });
+        } else if (block.type === 'tool_use') {
+          emit({ kind: 'tool', id: block.id, name: block.name, input: truncateInput(block.input) });
+        }
+      }
+    } else if (msg.type === 'user') {
+      // Tool results come back as a synthetic user turn (Messages API shape).
+      const content = msg.message && msg.message.content;
+      if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'tool_result') {
+            emit({
+              kind: 'tool_result',
+              id: block.tool_use_id,
+              ok: !block.is_error,
+              preview: toolResultPreview(block.content),
+            });
+          }
         }
       }
     } else if (msg.type === 'result') {
       if (typeof msg.total_cost_usd === 'number') costUsd = msg.total_cost_usd;
-      if (msg.is_error) error = msg.result || 'model reported an error';
+      if (msg.is_error) {
+        // An error turn is a failed measurement — never followed by a done event with
+        // numbers that describe a turn that didn't actually complete.
+        error = msg.result || 'model reported an error';
+      } else {
+        const u = msg.usage;
+        const tokens = u && typeof u.input_tokens === 'number' && typeof u.output_tokens === 'number'
+          ? { input: u.input_tokens, output: u.output_tokens }
+          : null;
+        emit({
+          kind: 'done',
+          costUsd,
+          ms: typeof msg.duration_ms === 'number' ? msg.duration_ms : 0,
+          turns: typeof msg.num_turns === 'number' ? msg.num_turns : 0,
+          tokens,
+        });
+      }
     }
   }
   return { text, costUsd, error };
@@ -127,7 +191,7 @@ async function drain(q, onChunk) {
  * @param {string[]} deps.agentIds   valid agent ids from roster.js
  * @param {string}  deps.cwd
  * @param {string[]} deps.extraDirs
- * @param {Function} [deps.onStream] (stepId, chunk)
+ * @param {Function} [deps.onStream] (stepId, event) — see drain()'s event shapes
  */
 function createRunners({ query, agentIds, cwd, extraDirs = [], onStream }) {
   const base = {
@@ -137,7 +201,7 @@ function createRunners({ query, agentIds, cwd, extraDirs = [], onStream }) {
     canUseTool: async (name, input) => readOnlyDecide(name, input),
   };
 
-  async function runBoss(request) {
+  async function runBoss(request, stepId = null) {
     let out;
     try {
       // query() can throw synchronously (bad options, transport down), so it stays
@@ -156,7 +220,7 @@ function createRunners({ query, agentIds, cwd, extraDirs = [], onStream }) {
           },
         },
       });
-      out = await drain(q);
+      out = await drain(q, stepId && onStream ? (event) => onStream(stepId, event) : null);
     } catch (e) {
       return { ok: false, error: `boss call failed: ${e.message}`, costUsd: 0 };
     }
@@ -194,7 +258,7 @@ function createRunners({ query, agentIds, cwd, extraDirs = [], onStream }) {
           systemPrompt: { type: 'preset', preset: 'claude_code' },
         },
       });
-      const out = await drain(q, stepId && onStream ? (c) => onStream(stepId, c) : null);
+      const out = await drain(q, stepId && onStream ? (event) => onStream(stepId, event) : null);
       if (out.error) return { ok: false, error: out.error, output: out.text, costUsd: out.costUsd };
       if (!out.text.trim()) return { ok: false, error: 'empty output', costUsd: out.costUsd };
       return { ok: true, output: out.text, costUsd: out.costUsd };
@@ -298,6 +362,86 @@ if (require.main === module) {
       agentIds: IDS, cwd: '/tmp',
     });
     assert.equal((await throwRunners.runWorker('ceo', 'x')).ok, false);
+
+    // --- drain() streams the new event contract: text, tool, tool_result, done, in order
+    const longCmd = 'x'.repeat(500);
+    const events = [];
+    const stream = (async function* () {
+      yield { type: 'assistant', message: { content: [{ type: 'text', text: 'looking' }] } };
+      yield {
+        type: 'assistant',
+        message: { content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: longCmd } }] },
+      };
+      yield {
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: false, content: 'ok' }] },
+      };
+      yield {
+        type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0.05,
+        duration_ms: 1200, num_turns: 2, usage: { input_tokens: 10, output_tokens: 20 },
+      };
+    })();
+    const out = await drain(stream, (e) => events.push(e));
+    assert.equal(out.text, 'looking', 'accumulated .text must still equal the concatenated text deltas');
+    assert.equal(out.costUsd, 0.05);
+    assert.equal(out.error, null);
+    assert.deepEqual(events.map((e) => e.kind), ['text', 'tool', 'tool_result', 'done']);
+    assert.equal(events[1].name, 'Bash');
+    assert.equal(events[1].input.command.length, 300, 'a >300-char input string must be truncated');
+    assert.equal(events[2].ok, true);
+    assert.equal(events[2].preview, 'ok');
+    assert.deepEqual(events[3], { kind: 'done', costUsd: 0.05, ms: 1200, turns: 2, tokens: { input: 10, output: 20 } });
+
+    // tokens is null when the SDK gives no usage on the result — never invented
+    const noUsageEvents = [];
+    await drain((async function* () {
+      yield { type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0, duration_ms: 5, num_turns: 1 };
+    })(), (e) => noUsageEvents.push(e));
+    assert.deepEqual(noUsageEvents.map((e) => e.kind), ['done']);
+    assert.equal(noUsageEvents[0].tokens, null);
+
+    // an error result returns ok:false and must never emit a bogus done
+    const errEvents = [];
+    const errOut = await drain((async function* () {
+      yield { type: 'result', subtype: 'error_during_execution', is_error: true, result: 'boom', total_cost_usd: 0.01 };
+    })(), (e) => errEvents.push(e));
+    assert.equal(errOut.error, 'boom');
+    assert.deepEqual(errEvents, [], 'an error result must never emit a done event');
+
+    // runWorker tags every event with its stepId
+    const workerStreamed = [];
+    const streamingRunners = createRunners({
+      query: () => (async function* () {
+        yield { type: 'assistant', message: { content: [{ type: 'text', text: 'hi' }] } };
+        yield { type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0, num_turns: 1, duration_ms: 1 };
+      })(),
+      agentIds: IDS, cwd: '/tmp',
+      onStream: (stepId, event) => workerStreamed.push([stepId, event.kind]),
+    });
+    await streamingRunners.runWorker('ceo', 'x', [], 'step-1');
+    assert.deepEqual(workerStreamed, [['step-1', 'text'], ['step-1', 'done']]);
+
+    // runBoss streams too when given a stepId, and stays silent without one (unchanged signature)
+    const bossStreamed = [];
+    const bossStreamRunners = createRunners({
+      query: () => (async function* () {
+        yield { type: 'assistant', message: { content: [{ type: 'text', text: JSON.stringify(good) }] } };
+        yield { type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0, num_turns: 1, duration_ms: 1 };
+      })(),
+      agentIds: IDS, cwd: '/tmp',
+      onStream: (stepId, event) => bossStreamed.push([stepId, event.kind]),
+    });
+    await bossStreamRunners.runBoss('ship it', 'plan-1');
+    assert.deepEqual(bossStreamed, [['plan-1', 'text'], ['plan-1', 'done']]);
+
+    const silentBossRunners = createRunners({
+      query: () => (async function* () {
+        yield { type: 'result', subtype: 'success', is_error: false, total_cost_usd: 0, num_turns: 0, duration_ms: 0 };
+      })(),
+      agentIds: IDS, cwd: '/tmp',
+      onStream: () => { throw new Error('must not stream when runBoss is called with no stepId'); },
+    });
+    await silentBossRunners.runBoss('ship it'); // no stepId → no streaming, existing callers untouched
 
     console.log('office-runners.js: all checks pass');
   })().catch((e) => { console.error(e); process.exit(1); });

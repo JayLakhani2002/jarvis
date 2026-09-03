@@ -329,8 +329,12 @@ function createOffice({ dbPath, runBoss, runWorker, maxConcurrent = 4, stepTimeo
     }));
   }
 
-  function onStream(stepId, chunk) {
-    bus.emit('stream', { stepId, chunk });
+  // One streaming contract everywhere: office-runners emits typed events
+  // ({kind:'text'|'thinking'|'tool'|'tool_result'|'done'}) and the renderer reads
+  // `.event`. This used to re-emit under a `chunk` key, which the renderer silently
+  // ignored — a second, stale path that looked wired but delivered nothing.
+  function onStream(stepId, event) {
+    bus.emit('stream', { stepId, event });
   }
 
   function close() {

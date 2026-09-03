@@ -157,6 +157,184 @@
     return best;
   }
 
+  // ==========================================================================
+  // 1b. Chat-transcript formatting — pure string functions (no DOM), so the
+  //     dependency-free markdown renderer's XSS-safety is provable in the
+  //     Node self-test, not just eyeballed in a browser.
+  // ==========================================================================
+
+  // NON-NEGOTIABLE: escape HTML special chars BEFORE any markdown transform
+  // ever runs. Model output is untrusted — this is the only line standing
+  // between a code block and stored XSS.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  const COPY_ICON_SVG =
+    '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
+    '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+    '<path d="M3.5 10.5v-6a1 1 0 0 1 1-1h6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
+    '</svg>';
+
+  function renderCodeBlock(block) {
+    const lang = escapeHtml((block.lang || '').trim());
+    const code = escapeHtml(String(block.code).replace(/\n$/, ''));
+    return '<div class="code-block">' +
+      '<div class="code-block-head">' +
+        '<span class="code-lang">' + (lang || 'text') + '</span>' +
+        '<button type="button" class="copy-btn" aria-label="Copy code">' +
+          COPY_ICON_SVG + '<span class="copy-btn-label">Copy</span>' +
+        '</button>' +
+      '</div>' +
+      '<pre><code>' + code + '</code></pre>' +
+    '</div>';
+  }
+
+  // Inline spans, applied to already-escaped text — order matters (bold
+  // before italic so ** isn't eaten by the * rule first).
+  function renderInline(text) {
+    let out = text;
+    out = out.replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+    out = out.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    out = out.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
+    // links render as plain text — never clickable, this is untrusted output.
+    out = out.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '$1 <span class="md-link">($2)</span>');
+    return out;
+  }
+
+  // Fenced code blocks are located and rendered directly off the raw
+  // (pre-escape) text and spliced back in — no placeholder/sentinel token
+  // needed, so there is no risk of a sentinel colliding with real text.
+  const FENCE_RE = /```([a-zA-Z0-9_+-]*)\n?([\s\S]*?)```/g;
+
+  function renderBlocks(text) {
+    const lines = text.split('\n');
+    const out = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+
+      if (line.trim() === '') { i++; continue; }
+
+      const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+      if (heading) {
+        const level = heading[1].length;
+        out.push('<h' + level + '>' + renderInline(heading[2]) + '</h' + level + '>');
+        i++; continue;
+      }
+
+      if (/^&gt;\s?/.test(line)) {
+        const quoted = [];
+        while (i < lines.length && /^&gt;\s?/.test(lines[i])) {
+          quoted.push('<p>' + renderInline(lines[i].replace(/^&gt;\s?/, '')) + '</p>');
+          i++;
+        }
+        out.push('<blockquote>' + quoted.join('') + '</blockquote>');
+        continue;
+      }
+
+      if (/^[-*]\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+          items.push('<li>' + renderInline(lines[i].replace(/^[-*]\s+/, '')) + '</li>');
+          i++;
+        }
+        out.push('<ul>' + items.join('') + '</ul>');
+        continue;
+      }
+
+      if (/^\d+\.\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+          items.push('<li>' + renderInline(lines[i].replace(/^\d+\.\s+/, '')) + '</li>');
+          i++;
+        }
+        out.push('<ol>' + items.join('') + '</ol>');
+        continue;
+      }
+
+      const para = [];
+      while (
+        i < lines.length && lines[i].trim() !== '' &&
+        !/^(#{1,6})\s+/.test(lines[i]) && !/^&gt;\s?/.test(lines[i]) &&
+        !/^[-*]\s+/.test(lines[i]) && !/^\d+\.\s+/.test(lines[i])
+      ) {
+        para.push(renderInline(lines[i]));
+        i++;
+      }
+      out.push('<p>' + para.join('<br>') + '</p>');
+    }
+    return out.join('');
+  }
+
+  // Dependency-free markdown -> safe HTML. Fenced-code segments are sliced
+  // out and rendered off their own content BEFORE the surrounding prose is
+  // escaped and block/inline-parsed, so a code sample's markdown-looking
+  // characters are never re-interpreted as markdown syntax.
+  function markdownToHtml(raw) {
+    const src = String(raw == null ? '' : raw);
+    let html = '';
+    let lastIndex = 0;
+    let m;
+    FENCE_RE.lastIndex = 0;
+    while ((m = FENCE_RE.exec(src))) {
+      const textPart = src.slice(lastIndex, m.index);
+      if (textPart) html += renderBlocks(escapeHtml(textPart));
+      html += renderCodeBlock({ lang: m[1], code: m[2] });
+      lastIndex = FENCE_RE.lastIndex;
+    }
+    const rest = src.slice(lastIndex);
+    if (rest) html += renderBlocks(escapeHtml(rest));
+    return html;
+  }
+
+  function truncate(s, n) {
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  function safeJsonOneLine(obj) {
+    try { return JSON.stringify(obj); } catch { return String(obj); }
+  }
+
+  function safeJsonPretty(obj) {
+    try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+  }
+
+  // One-line summary for a collapsed tool row — prefers the fields that
+  // actually explain what a tool call *did* over a raw JSON dump.
+  function summarizeToolInput(input) {
+    if (!input || typeof input !== 'object') return '';
+    const v = input.file_path != null ? input.file_path
+      : input.command != null ? input.command
+      : input.pattern != null ? input.pattern
+      : null;
+    const s = v != null ? String(v) : safeJsonOneLine(input);
+    return truncate(s, 80);
+  }
+
+  function formatDuration(ms) {
+    return ms < 1000 ? Math.round(ms) + 'ms' : (ms / 1000).toFixed(1) + 's';
+  }
+
+  // Footer stat line. tokens is nullable by contract — omit it rather than
+  // ever rendering a fabricated "0".
+  function formatDoneStats(stats) {
+    if (!stats) return '';
+    const parts = [];
+    if (typeof stats.costUsd === 'number') parts.push('$' + stats.costUsd.toFixed(4));
+    if (typeof stats.ms === 'number') parts.push(formatDuration(stats.ms));
+    if (typeof stats.turns === 'number') parts.push(stats.turns + (stats.turns === 1 ? ' turn' : ' turns'));
+    if (stats.tokens && typeof stats.tokens.input === 'number' && typeof stats.tokens.output === 'number') {
+      parts.push(stats.tokens.input + '→' + stats.tokens.output + ' tok');
+    }
+    return parts.join(' · ');
+  }
+
   function __selftest() {
     const assert = (cond, msg) => { if (!cond) throw new Error('FAIL: ' + msg); };
 
@@ -257,6 +435,50 @@
     }
     const dt = Date.now() - t0;
     assert(dt < 1000, 'resolving status for 84 agents, 1000x, stays cheap (' + dt + 'ms for 84000 calls)');
+
+    // ---- markdown renderer: escaping, transforms, and the XSS guarantee ----
+    assert(escapeHtml('<b>&"</b>') === '&lt;b&gt;&amp;&quot;&lt;/b&gt;', 'escapeHtml escapes & < > " exactly');
+
+    // SECURITY: the whole point of the renderer — untrusted model text that
+    // looks like an HTML element must never become a live element.
+    const xssInput = 'before <img src=x onerror=alert(1)> after';
+    const xssRendered = markdownToHtml(xssInput);
+    assert(!/<img/i.test(xssRendered), 'a raw <img> tag never appears unescaped in rendered output');
+    assert(xssRendered.indexOf('&lt;img') !== -1, 'the angle bracket renders as visible escaped text, not a tag');
+    assert(xssRendered.indexOf('onerror') !== -1, 'the payload text is preserved but inert (plain text, not a live attribute)');
+    // Strip every tag the renderer itself is known to emit; anything left
+    // over would mean injected markup survived — i.e. an XSS hole.
+    const KNOWN_TAGS = /<\/?(p|strong|em|code|pre|h[1-6]|ul|ol|li|blockquote|div|span|button|rect|path|svg)(\s[^>]*)?>/gi;
+    assert(xssRendered.replace(KNOWN_TAGS, '').indexOf('<') === -1,
+      'no tag survives besides the renderer\'s own safe, hardcoded markup');
+
+    assert(markdownToHtml('**bold** and *italic* and `code`') ===
+      '<p><strong>bold</strong> and <em>italic</em> and <code class="inline-code">code</code></p>',
+      'bold/italic/inline-code transforms');
+    assert(markdownToHtml('# Heading').indexOf('<h1>Heading</h1>') !== -1, 'heading transform');
+    assert(markdownToHtml('- a\n- b').indexOf('<ul><li>a</li><li>b</li></ul>') !== -1, 'bullet list transform');
+    assert(markdownToHtml('1. a\n2. b').indexOf('<ol><li>a</li><li>b</li></ol>') !== -1, 'numbered list transform');
+    assert(markdownToHtml('> quoted').indexOf('<blockquote><p>quoted</p></blockquote>') !== -1, 'blockquote transform');
+    const linkRendered = markdownToHtml('see [docs](https://example.com/x)');
+    assert(linkRendered.indexOf('<a ') === -1, 'links never become clickable anchors');
+    assert(linkRendered.indexOf('docs') !== -1 && linkRendered.indexOf('example.com') !== -1,
+      'link text and URL both still render as plain text');
+    const codeRendered = markdownToHtml('```js\nconst x = 1 < 2;\n```');
+    assert(codeRendered.indexOf('code-lang">js<') !== -1, 'fenced code block carries its language label');
+    assert(codeRendered.indexOf('1 &lt; 2') !== -1, 'code content is escaped, not executed as further markdown');
+    assert(codeRendered.indexOf('copy-btn') !== -1, 'fenced code block carries a copy button');
+
+    // ---- tool-row / footer formatting ----
+    assert(summarizeToolInput({ file_path: '/a/b.js' }) === '/a/b.js', 'tool summary prefers file_path');
+    assert(summarizeToolInput({ command: 'ls -la' }) === 'ls -la', 'tool summary prefers command');
+    assert(summarizeToolInput({ pattern: '*.ts' }) === '*.ts', 'tool summary prefers pattern');
+    assert(summarizeToolInput({ x: 1 }) === '{"x":1}', 'tool summary falls back to compact JSON');
+    assert(summarizeToolInput({ command: 'x'.repeat(200) }).length === 80, 'tool summary truncates long input');
+
+    assert(formatDoneStats({ costUsd: 0.0123, ms: 4200, turns: 3, tokens: { input: 512, output: 128 } }) ===
+      '$0.0123 · 4.2s · 3 turns · 512→128 tok', 'done-stats line with tokens present');
+    assert(formatDoneStats({ costUsd: 0.01, ms: 500, turns: 1, tokens: null }) === '$0.0100 · 500ms · 1 turn',
+      'done-stats omits tokens entirely when null, never fabricates a number');
 
     console.log('office renderer: all checks pass');
   }
@@ -387,7 +609,6 @@
     let hoverAgentId = null;
     let focusedAgentId = null;
     let selected = null;    // { kind: 'agent'|'task', id }
-    let panelOutputEl = null; // <pre> currently receiving live stream deltas
     let listMode = false;
 
     let dragging = false, dragged = false, dragStart = null, camStart = null;
@@ -400,6 +621,25 @@
     const prevStepState = new Map(); // stepId -> last-seen state, to detect entry into 'working'
     const lastChunkAt = new Map();   // stepId -> performance.now() of most recent stream chunk
     const STREAM_WINDOW_MS = 1200;   // recent chunk => draw as streaming instead of plain working
+
+    // ---- chat transcript state (the agent panel's message stream) ----
+    // Keyed by stepId so switching agents and back (or a background
+    // handleChange re-render) never loses history already streamed in.
+    const stepBlocks = new Map();     // stepId -> [{kind:'text'|'thinking', text} | {kind:'tool', id, name, input, result} | ...]
+    const stepDoneStats = new Map();  // stepId -> { costUsd, ms, turns, tokens } from the 'done' event
+
+    // Live-DOM bookkeeping for the transcript currently on screen — reset by
+    // renderAgentPanel() on every (re)mount so handleStream() can append
+    // directly into it instead of re-rendering the whole transcript on every
+    // chunk (that would jank badly under fast streaming).
+    let panelStreamStepId = null;   // stepId the mounted transcript is showing
+    let panelTranscriptEl = null;   // the .transcript scroll container
+    let panelToolRowEls = null;     // Map(toolCallId -> row <details> element)
+    let panelPinnedToBottom = true; // auto-scroll only while already at the bottom
+    let panelJumpBtn = null;        // "jump to latest" affordance, shown when not pinned
+    let panelRunIndicatorEl = null; // header's animated "working" pill
+    let panelStopBtnEl = null;      // Stop button — both this and the above hide on completion
+    let panelFooterEl = null;       // cost/duration/turns/tokens line, populated on 'done'
 
     // Eases a 0..1 value toward `target`, frame-rate independent via dt.
     // Under reduced motion, every caller snaps straight to `target` instead
@@ -499,29 +739,59 @@
       ensureLoop();
     }
 
+    // Typed event contract: { stepId, event } where event is exactly one of
+    // { kind:'text', text } | { kind:'thinking', text } |
+    // { kind:'tool', id, name, input } | { kind:'tool_result', id, ok, preview } |
+    // { kind:'done', costUsd, ms, turns, tokens }. History is kept per-step
+    // in `stepBlocks` (data, not DOM) so switching agents and back never
+    // loses what already streamed in; the live transcript is appended to
+    // directly rather than re-rendered on every chunk (renderPanel() would
+    // jank badly under fast streaming).
     function handleStream(d) {
-      // Real payload (app/office.js: bus.emit('stream', { stepId, chunk }),
-      // forwarded verbatim by main.js) — not specified in the contract, so
-      // this aligns to the concrete shape rather than guessing one.
-      if (!d || !appState || !d.stepId) return;
-      const { stepId, chunk } = d;
+      if (!d || !d.stepId || !d.event) return;
+      const { stepId, event } = d;
       lastChunkAt.set(stepId, performance.now());
-      if (chunk) {
-        const step = (appState.steps || []).find((s) => s.id === stepId);
-        if (step) step.output = (step.output || '') + chunk;
-        if (panelOutputEl && selected && selected.kind === 'agent') {
-          const agent = roster.agents.find((a) => a.id === selected.id);
-          const current = agent && latestStepForAgent(appState.steps || [], agent);
-          if (current && current.id === stepId) {
-            panelOutputEl.textContent += chunk;
-            panelOutputEl.scrollTop = panelOutputEl.scrollHeight;
-          }
+
+      let blocks = stepBlocks.get(stepId);
+      if (!blocks) { blocks = []; stepBlocks.set(stepId, blocks); }
+      const isLive = !!panelTranscriptEl && panelStreamStepId === stepId;
+
+      if (event.kind === 'text' || event.kind === 'thinking') {
+        const last = blocks[blocks.length - 1];
+        if (last && last.kind === event.kind) {
+          last.text += event.text;
+          if (isLive) updateOpenTranscriptBlock(last);
+        } else {
+          const block = { kind: event.kind, text: event.text };
+          blocks.push(block);
+          if (isLive) appendTranscriptBlock(block);
         }
+      } else if (event.kind === 'tool') {
+        const block = { kind: 'tool', id: event.id, name: event.name, input: event.input, result: null };
+        blocks.push(block);
+        if (isLive) appendTranscriptBlock(block);
+      } else if (event.kind === 'tool_result') {
+        const block = findToolBlock(blocks, event.id);
+        if (block) {
+          block.result = { ok: event.ok, preview: event.preview };
+          if (isLive) updateToolResultMark(block);
+        }
+      } else if (event.kind === 'done') {
+        stepDoneStats.set(stepId, {
+          costUsd: event.costUsd, ms: event.ms, turns: event.turns, tokens: event.tokens || null,
+        });
+        if (isLive) renderRunState(stepId);
       }
-      // A chunk means this step is live right now — make sure the
-      // streaming-dots shape (see liveStatus) gets drawn and keeps ticking.
+
       ensureLoop();
       draw();
+    }
+
+    function findToolBlock(blocks, id) {
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        if (blocks[i].kind === 'tool' && blocks[i].id === id) return blocks[i];
+      }
+      return null;
     }
 
     function detectNewWorkAndBeam(steps) {
@@ -886,9 +1156,20 @@
 
     function clearSelection() {
       selected = nextSelection({ type: 'close' });
-      panelOutputEl = null;
+      resetTranscriptRefs();
       hidePanel();
       draw();
+    }
+
+    function resetTranscriptRefs() {
+      panelTranscriptEl = null;
+      panelStreamStepId = null;
+      panelToolRowEls = null;
+      panelJumpBtn = null;
+      panelPinnedToBottom = true;
+      panelRunIndicatorEl = null;
+      panelStopBtnEl = null;
+      panelFooterEl = null;
     }
 
     // The panel docks beside the canvas (see office.css: .office-stage is a
@@ -927,10 +1208,237 @@
       return btn;
     }
 
+    // ---------------- transcript (the Claude-Code-style message stream) ----------------
+
+    const DEFAULT_MODEL_BADGE = 'claude-sonnet-5';
+
+    const TOOL_ICON_SVG =
+      '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
+      '<path d="M2.5 3.5 6 8l-3.5 4.5M8 12.5h5.5" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const TOOL_OK_ICON =
+      '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
+      '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+      '<path d="M5 8.2 7 10.2 11 6" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const TOOL_FAIL_ICON =
+      '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">' +
+      '<path d="M8 1.5 14.5 13h-13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<path d="M8 6.4v3.1M8 11.4v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+    // markup is always our own hardcoded string above, never model/user
+    // text — safe to build via innerHTML, unlike anything derived from a
+    // stream event.
+    function svgFromMarkup(markup) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = markup;
+      return tmp.firstElementChild;
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* clipboard unavailable — no-op */ }
+      document.body.removeChild(ta);
+    }
+
+    // Wires every code block's copy button under `rootEl`. Called after any
+    // innerHTML assignment (initial render AND every streamed markdown
+    // update), since resetting innerHTML always produces fresh button nodes.
+    function wireCodeCopyButtons(rootEl) {
+      rootEl.querySelectorAll('.copy-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const codeEl = btn.closest('.code-block').querySelector('pre code');
+          copyToClipboard(codeEl ? codeEl.textContent : '');
+          const label = btn.querySelector('.copy-btn-label');
+          if (!label) return;
+          clearTimeout(btn._copyTimer);
+          label.textContent = 'Copied';
+          btn.classList.add('copied');
+          btn._copyTimer = setTimeout(() => {
+            label.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 1500);
+        });
+      });
+    }
+
+    function buildTextBubble(block) {
+      const bubble = el('div', 'msg-text');
+      const body = el('div', 'msg-body');
+      body.innerHTML = markdownToHtml(block.text);
+      wireCodeCopyButtons(body);
+      bubble.appendChild(body);
+      return bubble;
+    }
+
+    // Collapsed + dimmed by default — <details> gives expand/collapse and
+    // keyboard support for free, no custom toggle JS needed.
+    function buildThinkingBlock(block) {
+      const details = document.createElement('details');
+      details.className = 'msg-thinking';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Thought';
+      details.appendChild(summary);
+      const body = el('div', 'msg-body thinking-body');
+      body.innerHTML = markdownToHtml(block.text);
+      wireCodeCopyButtons(body);
+      details.appendChild(body);
+      return details;
+    }
+
+    function applyToolResultToRow(rowEl, result) {
+      const markEl = rowEl._markEl;
+      if (markEl) {
+        markEl.innerHTML = result.ok ? TOOL_OK_ICON : TOOL_FAIL_ICON;
+        markEl.classList.toggle('is-ok', !!result.ok);
+        markEl.classList.toggle('is-failed', !result.ok);
+        markEl.setAttribute('aria-label', result.ok ? 'succeeded' : 'failed');
+      }
+      const detailEl = rowEl._detailEl;
+      if (detailEl && !detailEl.querySelector('.tool-result-preview')) {
+        detailEl.appendChild(el('div', 'panel-label', 'Result'));
+        detailEl.appendChild(el('pre', 'tool-result-preview', result.preview || ''));
+      }
+    }
+
+    // One compact row per tool call — name + a one-line input summary,
+    // collapsed; clicking expands the full input as formatted JSON. The
+    // ok/failed marker (once tool_result arrives) is shape AND colour, never
+    // colour alone — see TOOL_OK_ICON/TOOL_FAIL_ICON above.
+    function buildToolRow(block) {
+      const details = document.createElement('details');
+      details.className = 'tool-row';
+      const summary = document.createElement('summary');
+      summary.className = 'tool-row-summary';
+      summary.appendChild(svgFromMarkup(TOOL_ICON_SVG));
+      summary.appendChild(el('span', 'tool-name', block.name));
+      summary.appendChild(el('span', 'tool-input-line', summarizeToolInput(block.input)));
+      const markEl = el('span', 'tool-result-mark');
+      summary.appendChild(markEl);
+      details.appendChild(summary);
+
+      const detail = el('div', 'tool-row-detail');
+      detail.appendChild(el('div', 'panel-label', 'Input'));
+      detail.appendChild(el('pre', 'tool-input-json', safeJsonPretty(block.input)));
+      details.appendChild(detail);
+
+      details._markEl = markEl;
+      details._detailEl = detail;
+      if (block.result) applyToolResultToRow(details, block.result);
+      return details;
+    }
+
+    function updateToolResultMark(block) {
+      const rowEl = panelToolRowEls && panelToolRowEls.get(block.id);
+      if (rowEl) applyToolResultToRow(rowEl, block.result);
+    }
+
+    function scrollTranscriptToBottom() {
+      if (!panelTranscriptEl) return;
+      panelTranscriptEl.scrollTop = panelTranscriptEl.scrollHeight;
+      panelPinnedToBottom = true;
+      if (panelJumpBtn) panelJumpBtn.hidden = true;
+    }
+
+    // Only auto-scrolls while already pinned to the bottom — a user who has
+    // scrolled up to read earlier output never gets yanked back down.
+    function afterTranscriptMutate() {
+      if (!panelTranscriptEl) return;
+      if (panelPinnedToBottom) scrollTranscriptToBottom();
+      else if (panelJumpBtn) panelJumpBtn.hidden = false;
+    }
+
+    function wireTranscriptScroll(container) {
+      container.addEventListener('scroll', () => {
+        const gap = container.scrollHeight - container.scrollTop - container.clientHeight;
+        panelPinnedToBottom = gap < 24;
+        if (panelJumpBtn) panelJumpBtn.hidden = panelPinnedToBottom;
+      });
+    }
+
+    function appendTranscriptBlock(block) {
+      // Real content just arrived — clear a stale "no activity" placeholder
+      // left over from a mount that happened before this step had anything.
+      const empty = panelTranscriptEl.querySelector('.transcript-empty');
+      if (empty) empty.remove();
+      let node;
+      if (block.kind === 'text') node = buildTextBubble(block);
+      else if (block.kind === 'thinking') node = buildThinkingBlock(block);
+      else if (block.kind === 'tool') node = buildToolRow(block);
+      else return;
+      panelTranscriptEl.appendChild(node);
+      if (block.kind === 'tool' && panelToolRowEls) panelToolRowEls.set(block.id, node);
+      afterTranscriptMutate();
+    }
+
+    // A streamed text/thinking delta merges into the already-open block
+    // (see handleStream) — update the existing bubble in place rather than
+    // appending a new one per chunk.
+    function updateOpenTranscriptBlock(block) {
+      const last = panelTranscriptEl && panelTranscriptEl.lastElementChild;
+      const body = last && last.querySelector('.msg-body');
+      if (!body) return;
+      body.innerHTML = markdownToHtml(block.text);
+      wireCodeCopyButtons(body);
+      afterTranscriptMutate();
+    }
+
+    function mountTranscript(step) {
+      panelToolRowEls = new Map();
+      const blocks = step && stepBlocks.get(step.id);
+      if (blocks && blocks.length) {
+        for (const block of blocks) appendTranscriptBlock(block);
+        return;
+      }
+      // Fallback for a step whose event history predates this panel session
+      // (e.g. already complete when the app opened) — render what we have
+      // as one message instead of showing nothing.
+      if (step && step.output) {
+        appendTranscriptBlock({ kind: 'text', text: step.output });
+        return;
+      }
+      panelTranscriptEl.appendChild(el('div', 'transcript-empty',
+        step ? 'No output yet.' : 'No activity yet.'));
+    }
+
+    // Shows/hides the running indicator + Stop button and the completion
+    // footer stats — called on mount and again (without a full re-render)
+    // when a live 'done' event lands for the step currently on screen.
+    function renderRunState(stepId) {
+      const agent = roster.agents.find((a) => a.id === selected.id);
+      if (!agent) return;
+      const steps = (appState && appState.steps) || [];
+      const status = liveStatus(agent, steps, performance.now());
+      const running = status === 'working' || status === 'streaming';
+      if (panelRunIndicatorEl) panelRunIndicatorEl.hidden = !running;
+      if (panelStopBtnEl) panelStopBtnEl.hidden = !running;
+      const stats = stepDoneStats.get(stepId);
+      if (panelFooterEl) {
+        if (!running && stats) {
+          panelFooterEl.textContent = formatDoneStats(stats);
+          panelFooterEl.hidden = false;
+        } else {
+          panelFooterEl.hidden = true;
+        }
+      }
+    }
+
     function renderPanel() {
       if (!panel || !selected) return;
       panel.replaceChildren();
-      panelOutputEl = null;
+      resetTranscriptRefs();
       panel.appendChild(closeButton());
       if (selected.kind === 'agent') renderAgentPanel();
       else if (selected.kind === 'task') renderTaskPanel();
@@ -942,29 +1450,60 @@
       const steps = (appState && appState.steps) || [];
       const step = latestStepForAgent(steps, agent);
       const status = liveStatus(agent, steps, performance.now());
+      const running = status === 'working' || status === 'streaming';
 
-      panel.appendChild(el('h3', 'panel-title', agent.name));
-      panel.appendChild(el('div', 'panel-sub', agent.dept + (agent.model ? ' · ' + agent.model : '')));
-      panel.appendChild(el('div', 'panel-status status-' + status, status.replace('_', ' ')));
+      // ---- header: name, department, model badge, status pill, running indicator ----
+      const head = el('div', 'panel-head');
+      const titleRow = el('div', 'panel-title-row');
+      titleRow.appendChild(el('h3', 'panel-title', agent.name));
+      titleRow.appendChild(el('span', 'model-badge', agent.model || DEFAULT_MODEL_BADGE));
+      head.appendChild(titleRow);
+      head.appendChild(el('div', 'panel-sub', agent.dept));
+      const statusRow = el('div', 'panel-status-row');
+      statusRow.appendChild(el('span', 'panel-status status-' + status, status.replace('_', ' ')));
+      const runInd = el('span', 'run-indicator');
+      runInd.hidden = true; // renderRunState() below sets the real value
+      runInd.appendChild(el('span', 'run-dot'));
+      runInd.appendChild(document.createTextNode('Working'));
+      statusRow.appendChild(runInd);
+      panelRunIndicatorEl = runInd;
+      head.appendChild(statusRow);
+      panel.appendChild(head);
 
-      panel.appendChild(el('div', 'panel-label', 'Instruction'));
-      panel.appendChild(el('p', 'panel-text', (step && stepInstruction(step)) || 'No active instruction.'));
+      // ---- message stream ----
+      const transcriptWrap = el('div', 'transcript-wrap');
+      const transcript = el('div', 'transcript');
+      transcriptWrap.appendChild(transcript);
+      const jumpBtn = el('button', 'jump-latest', 'Jump to latest ↓');
+      jumpBtn.type = 'button';
+      jumpBtn.hidden = true;
+      jumpBtn.addEventListener('click', scrollTranscriptToBottom);
+      transcriptWrap.appendChild(jumpBtn);
+      panel.appendChild(transcriptWrap);
 
-      panel.appendChild(el('div', 'panel-label', 'Output'));
-      const outputEl = el('pre', 'panel-output', (step && step.output) || '—');
-      panel.appendChild(outputEl);
-      if (step && (status === 'working' || status === 'streaming')) panelOutputEl = outputEl;
+      panelTranscriptEl = transcript;
+      panelPinnedToBottom = true;
+      panelJumpBtn = jumpBtn;
+      panelStreamStepId = step ? step.id : null;
+      wireTranscriptScroll(transcript);
+      mountTranscript(step);
 
       if (step && step.error) panel.appendChild(el('div', 'panel-error', step.error));
 
-      panel.appendChild(el('div', 'panel-label', 'Cost'));
-      panel.appendChild(el('div', 'panel-text', '$' + ((step && step.costUsd) || 0).toFixed(4)));
+      // ---- footer: cost/duration/turns/tokens, populated only on 'done' ----
+      const footer = el('div', 'panel-footer-stats');
+      footer.hidden = true;
+      panel.appendChild(footer);
+      panelFooterEl = footer;
 
-      if (step && (status === 'working' || status === 'streaming')) {
+      if (running && step) {
         const stop = el('button', 'panel-stop', 'Stop');
         stop.addEventListener('click', () => window.office.cancel(step.id));
         panel.appendChild(stop);
+        panelStopBtnEl = stop;
       }
+
+      renderRunState(step ? step.id : null);
     }
 
     function formatPlan(planJson) {
@@ -1163,6 +1702,7 @@
     findAgentForStep, stepMatchesAgent, latestStepForAgent, resolveStepStatus,
     agentStatus, STATUS_SHAPE, shapeForStatus, roomIsActive, clamp, clampCamera,
     screenToWorld, hitTestAgent, stepInstruction, taskPlan, nextSelection, __selftest,
+    escapeHtml, markdownToHtml, summarizeToolInput, formatDoneStats, formatDuration, truncate,
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = publicApi;
