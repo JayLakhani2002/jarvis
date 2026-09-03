@@ -3,8 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- script-src stays strict ('self', no inline, no eval) — script injection is the
+       real risk. style-src allows inline because <jarvis-orb> builds its markup with
+       per-element style attributes; the usual CSS-exfiltration vectors are already shut
+       by default-src 'none', connect-src 'none' and an img-src with no remote origin. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src blob:; connect-src 'none';" />
+        content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src blob:; connect-src 'none';" />
   <title>Jarvis</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="office.css" />
@@ -36,7 +40,8 @@
 
   <div class="shell">
     <nav class="nav" aria-label="Sections">
-      <div class="brand">JARVIS</div>
+      <div class="brand"><jarvis-orb class="brand-orb" state="idle" auto-cycle="false"
+           palette="frost" trails="false" aria-hidden="true"></jarvis-orb>JARVIS</div>
       <button class="nav-item active" data-view="command"><svg><use href="#i-command"/></svg>Command Center</button>
       <button class="nav-item" data-view="vault"><svg><use href="#i-vault"/></svg>Knowledge Vault</button>
       <button class="nav-item" disabled title="Phase 3"><svg><use href="#i-tasks"/></svg>Tasks</button>
@@ -51,14 +56,8 @@
     <main class="main">
       <section class="view" id="view-command">
         <div class="orb-wrap">
-          <div class="orb" id="orb" role="img" aria-label="Jarvis status">
-            <svg class="rings" viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="ring ring-a" cx="60" cy="60" r="52" />
-              <circle class="ring ring-b" cx="60" cy="60" r="44" />
-              <circle class="ring ring-c" cx="60" cy="60" r="58" />
-            </svg>
-            <span class="orb-glow"></span>
-            <span class="orb-core"></span>
+          <div class="orb-slot" role="img" aria-label="Jarvis status">
+            <jarvis-orb id="orb" state="idle"></jarvis-orb>
           </div>
           <div class="orb-label" id="orb-label">ready</div>
         </div>
@@ -121,6 +120,7 @@
     <span class="stat" id="stat-state">idle</span>
   </footer>
 
+  <script src="jarvis-orb.js"></script>
   <script src="app.js"></script>
   <script src="office.js"></script>
 </body>

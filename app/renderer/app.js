@@ -30,7 +30,11 @@ function add(cls, text) {
 }
 
 function setState(s, label) {
-  orb.className = 'orb' + (s === 'idle' ? '' : ' ' + s);
+  // <jarvis-orb> knows idle|listening|thinking|speaking. 'error' is ours, so it
+  // parks the orb at idle and tints the surround instead of setting a state the
+  // component would ignore.
+  orb.state = s === 'error' ? 'idle' : s;
+  orb.parentElement.classList.toggle('error', s === 'error');
   $('orb-label').textContent = label || s;
   $('stat-state').textContent = s;
   if (s !== 'listening') level(0);
@@ -59,7 +63,7 @@ async function submit(prompt) {
 $('stop').addEventListener('click', () => window.jarvis.cancel());
 
 window.jarvis.onText((text) => {
-  if (orb.classList.contains('thinking')) setState('speaking', 'responding');
+  if (orb.state === 'thinking') setState('speaking', 'responding');
   if (!bubble) bubble = add('msg jarvis', '');
   const was = atBottom();
   bubble.textContent += text;
