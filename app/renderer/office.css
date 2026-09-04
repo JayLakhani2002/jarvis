@@ -69,8 +69,13 @@
 
 #office-canvas {
   flex: 1 1 auto; min-width: 0; width: auto; height: 100%; display: block;
-  background: #faf8f5; /* warm off-white floor — office.js repaints this every frame */
+  background: #f0e4d0; /* tan floor base — office.js repaints the tiled pattern every frame */
   cursor: default;
+  /* Keep the 16-bit pixel-art sprites/furniture/floor crisp at any CSS size —
+     office.js already floors every shape to its ART-pixel grid; this just
+     stops the browser from softening the backing-store scale-up. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 #office-canvas[hidden] { display: none; }
 

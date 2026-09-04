@@ -158,6 +158,56 @@
   }
 
   // ==========================================================================
+  // 1a. Pixel-art sprite appearance — pure (no DOM), so "same id, same
+  //     sprite across restarts" and "84 agents read as visually distinct"
+  //     are provable in the Node self-test, not just eyeballed on screen.
+  // ==========================================================================
+
+  // FNV-1a-ish string hash — deterministic, no randomness. Drives both the
+  // sprite appearance below and the renderer's idle-bob phase stagger.
+  function idHash(id) {
+    let h = 0;
+    const s = String(id);
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
+  const HAIR_STYLES = ['short', 'spiky', 'long', 'curly', 'bald', 'hat'];
+  const HAIR_COLORS = ['#1f1712', '#4a2c17', '#7a4a24', '#c9a227', '#8b8b8b', '#a83232'];
+  const SKIN_TONES = ['#ffdbac', '#f1c27d', '#c68642', '#8d5524', '#5a3825'];
+  const SHIRT_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#34495e', '#c9a227'];
+
+  // Deterministic per-agent look, derived purely from a hash of agent.id
+  // (never randomness) so it's identical across restarts. Four axes read
+  // off the same hash with different divisors so they vary roughly
+  // independently — 6 hair styles x 6 hair colours x 5 skin tones x 8 shirt
+  // colours = 1440 combinations, comfortably distinct across an 84-agent
+  // roster (see __selftest).
+  function agentAppearance(id) {
+    const h = idHash(id);
+    const hairStyleI = h % HAIR_STYLES.length;
+    const hairColorI = Math.floor(h / 7) % HAIR_COLORS.length;
+    const skinI = Math.floor(h / 53) % SKIN_TONES.length;
+    const shirtI = Math.floor(h / 311) % SHIRT_COLORS.length;
+    return {
+      hairStyle: HAIR_STYLES[hairStyleI],
+      hairColor: HAIR_COLORS[hairColorI],
+      skin: SKIN_TONES[skinI],
+      shirt: SHIRT_COLORS[shirtI],
+      key: hairStyleI + '.' + hairColorI + '.' + skinI + '.' + shirtI,
+    };
+  }
+
+  // The two sprite poses' anatomy differences, as one shared source of
+  // truth for both the renderer and the self-test — 'seated' (back of
+  // head/shoulders, agent at a desk facing a monitor) has no face and no
+  // legs, and wider shoulders, vs. 'front' (face + eyes, arms, legs, feet).
+  const POSE_ANATOMY = {
+    front: { hasFace: true, hasLegs: true, shoulderCols: 12 },
+    seated: { hasFace: false, hasLegs: false, shoulderCols: 14 },
+  };
+
+  // ==========================================================================
   // 1b. Chat-transcript formatting — pure string functions (no DOM), so the
   //     dependency-free markdown renderer's XSS-safety is provable in the
   //     Node self-test, not just eyeballed in a browser.
@@ -480,6 +530,32 @@
     assert(formatDoneStats({ costUsd: 0.01, ms: 500, turns: 1, tokens: null }) === '$0.0100 · 500ms · 1 turn',
       'done-stats omits tokens entirely when null, never fabricates a number');
 
+    // ---- pixel-art sprite appearance: deterministic, varied, pose-distinct ----
+    assert(JSON.stringify(agentAppearance('agent-1')) === JSON.stringify(agentAppearance('agent-1')),
+      'appearance-from-id is deterministic — hashing the same id twice yields an identical descriptor');
+
+    // Prefer the real 84-agent roster (~/.claude/agents/*.md, same source
+    // app/roster.js reads) when this machine has it; fall back to 84
+    // synthetic ids otherwise so the check still runs anywhere.
+    let rosterIds = null;
+    try {
+      const fs = require('fs'), os = require('os'), path = require('path');
+      const dir = path.join(os.homedir(), '.claude', 'agents');
+      rosterIds = fs.readdirSync(dir).filter((f) => f.endsWith('.md')).map((f) => f.slice(0, -3));
+    } catch { rosterIds = null; }
+    if (!rosterIds || rosterIds.length < 20) {
+      rosterIds = Array.from({ length: 84 }, (_, i) => 'synthetic-agent-' + i);
+    }
+    const distinctAppearances = new Set(rosterIds.map((id) => agentAppearance(id).key));
+    assert(distinctAppearances.size >= 20,
+      'at least 20 distinct appearance combinations across the roster (got ' + distinctAppearances.size +
+      ' from ' + rosterIds.length + ' ids)');
+
+    assert(POSE_ANATOMY.front.hasFace !== POSE_ANATOMY.seated.hasFace &&
+      POSE_ANATOMY.front.hasLegs !== POSE_ANATOMY.seated.hasLegs &&
+      POSE_ANATOMY.front.shoulderCols !== POSE_ANATOMY.seated.shoulderCols,
+      "'seated' pose anatomy differs from 'front' (no face, no legs, wider shoulders)");
+
     console.log('office renderer: all checks pass');
   }
 
@@ -508,10 +584,6 @@
       // (distinct from --bg white) so rooms read as rooms against it.
       floor: '#faf8f5',
     };
-    const STATUS_TEXT_COLOR = {
-      idle: COLOR.dim, working: COLOR.amber, streaming: COLOR.accent,
-      needs_review: COLOR.green, failed: COLOR.red,
-    };
 
     // Gather-style room identity: fill/border per room name (lowercased),
     // falling back to the neutral raised/line surface for anything unmapped.
@@ -536,12 +608,23 @@
       return ROOM_COLORS[String(roomName || '').toLowerCase()] || ROOM_FALLBACK;
     }
 
-    const TAU = Math.PI * 2;
+    // ---- pixel-art sprite/furniture/floor palette — 2-3 shades per
+    // material (base/shadow/highlight) plus one shared near-black outline;
+    // never more than a handful of colours per sprite. ----
+    const OUTLINE = '#141414';
+    const TROUSER_COLOR = '#33363b';
+    const SHOE_COLOR = '#20201f';
+    const HAT_COLOR = '#2b2b2b';
+    const TAG_BG = 'rgba(31, 31, 31, 0.85)';
+    const TAG_TEXT = '#ffffff';
+    const FLOOR_BASE = '#f0e4d0';
+    const FLOOR_GROUT = '#e0d2ba';
+
     const DESK_W = 30, DESK_H = 16;
     const BEAM_MS = 700;
     const PULSE_MS = 1400;
     const PAN_STEP = 48;
-    const BOB_PERIOD_MS = 2600; // idle breathing — slow, 1-2px
+    const BOB_PERIOD_MS = 2600; // idle breathing — a 1-art-pixel head/shoulder shift, not a smooth tween
     const EASE_ROOM_HEAT_MS = 220;
     const EASE_HOVER_MS = 140;
 
@@ -560,31 +643,289 @@
       const f = (c) => Math.max(0, Math.round(c * (1 - amt)));
       return 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')';
     }
-
-    // FNV-1a-ish string hash → stable per-agent phase offset (0..TAU) so the
-    // idle-bob animation isn't synchronized across every agent.
-    function idHash(id) {
-      let h = 0;
-      const s = String(id);
-      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-      return h;
+    // Lightens a hex color toward white by `amt` (0..1) — the highlight half
+    // of the darken() pair, together giving every sprite/furniture material
+    // its base/shadow/highlight triad.
+    function lighten(hex, amt) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      const f = (c) => Math.min(255, Math.round(c + (255 - c) * amt));
+      return 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')';
     }
 
-    function roundRectPath(ctx, x, y, w, h, r) {
-      const rr = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + rr, y);
-      ctx.arcTo(x + w, y, x + w, y + h, rr);
-      ctx.arcTo(x + w, y + h, x, y + h, rr);
-      ctx.arcTo(x, y + h, x, y, rr);
-      ctx.arcTo(x, y, x + w, y, rr);
-      ctx.closePath();
+    // ==========================================================================
+    // Pixel grid — the one technique that makes this read as 16-bit instead
+    // of vector art. Every sprite/furniture/floor shape is drawn through
+    // px()/blockRect() so it always lands on a whole "art pixel" (ART canvas
+    // units), never a fractional or antialiased coordinate. No arc(), no
+    // gradients, no shadowBlur anywhere below this line.
+    // ==========================================================================
+    const ART = 2; // 1 art pixel = ART canvas units — stays chunky at any camera zoom
+
+    function px(ctx, x, y, w, h, color) {
+      const x0 = Math.floor(x / ART) * ART;
+      const y0 = Math.floor(y / ART) * ART;
+      const x1 = Math.ceil((x + w) / ART) * ART;
+      const y1 = Math.ceil((y + h) / ART) * ART;
+      ctx.fillStyle = color;
+      ctx.fillRect(x0, y0, Math.max(ART, x1 - x0), Math.max(ART, y1 - y0));
+    }
+
+    // A rect whose corners are cut in ART-sized steps ("staircase" rounding)
+    // instead of an arc — exactly how real pixel art rounds a corner.
+    function blockRect(ctx, x, y, w, h, color, cornerN) {
+      cornerN = cornerN || 0;
+      const c = cornerN * ART;
+      if (h - 2 * c > 0) px(ctx, x, y + c, w, h - 2 * c, color);
+      for (let i = 0; i < cornerN; i++) {
+        const inset = (cornerN - i) * ART;
+        if (w - 2 * inset > 0) {
+          px(ctx, x + inset, y + i * ART, w - 2 * inset, ART, color);
+          px(ctx, x + inset, y + h - ART - i * ART, w - 2 * inset, ART, color);
+        }
+      }
+    }
+
+    // blockRect drawn twice — an ART-larger silhouette in OUTLINE behind the
+    // real fill — giving every big shape its 1-art-pixel dark border.
+    function outlinedBlock(ctx, x, y, w, h, color, cornerN) {
+      blockRect(ctx, x - ART, y - ART, w + 2 * ART, h + 2 * ART, OUTLINE, cornerN ? cornerN + 1 : 0);
+      blockRect(ctx, x, y, w, h, color, cornerN);
+    }
+
+    // Hollow rectangular ring (hover/selection/keyboard-focus), `thickness`
+    // canvas units wide — a pixel-grid stand-in for a stroked circle.
+    // `dashed` skips every other ART segment for the keyboard-focus variant.
+    function pxRingOutline(ctx, x, y, w, h, color, thickness, dashed) {
+      const step = dashed ? ART * 2 : ART;
+      for (let dx = 0; dx < w; dx += step) {
+        px(ctx, x + dx, y, Math.min(ART, w - dx), thickness, color);
+        px(ctx, x + dx, y + h - thickness, Math.min(ART, w - dx), thickness, color);
+      }
+      for (let dy = 0; dy < h; dy += step) {
+        px(ctx, x, y + dy, thickness, Math.min(ART, h - dy), color);
+        px(ctx, x + w - thickness, y + dy, thickness, Math.min(ART, h - dy), color);
+      }
+    }
+
+    // ==========================================================================
+    // Sprites — ~16x24 art pixels. Each distinct (appearance, pose,
+    // idle-bob-frame) combination is rendered ONCE to a small offscreen
+    // canvas and cached; draw() just blits it (see getAgentSprite), so nothing
+    // here re-issues rects on every frame for every agent.
+    // ==========================================================================
+    const SPR_COLS = 16, SPR_ROWS = 24; // "~16 wide x 24 tall art pixels"
+    const SPR_TOP = 2 * ART; // spare headroom (bob shift + the outline's 1px bleed) so nothing clips
+    const SPR_W = SPR_COLS * ART;
+    const SPR_H = 2 * SPR_TOP + SPR_ROWS * ART;
+    const spriteCache = new Map(); // "hairStyle.hairColor.skin.shirt|pose|frame" -> offscreen canvas
+
+    function getAgentSprite(appearance, pose, frame) {
+      const key = appearance.key + '|' + pose + '|' + frame;
+      let c = spriteCache.get(key);
+      if (c) return c;
+      c = document.createElement('canvas');
+      c.width = SPR_W;
+      c.height = SPR_H;
+      const sctx = c.getContext('2d');
+      sctx.imageSmoothingEnabled = false;
+      drawAgentSprite(sctx, SPR_W / 2, SPR_TOP, appearance, pose, frame);
+      spriteCache.set(key, c);
+      return c;
+    }
+
+    // Hair silhouette for the given style, centered at cx, `capCols` art
+    // pixels wide starting `capRows` art pixels tall at (cx, y0). 'curly' and
+    // the spike/side-hair accents are the only style-specific shapes; the
+    // rest share one capped-rect base — blockRect's staircase corners, never
+    // arc(), give the rounding.
+    function drawHair(ctx, cx, y0, style, color, capCols, capRows) {
+      if (style === 'bald') return;
+      const half = (capCols / 2) * ART;
+      if (style === 'hat') {
+        outlinedBlock(ctx, cx - half - ART, y0 + (capRows - 1) * ART, capCols * ART + 2 * ART, ART, HAT_COLOR, 0);
+        outlinedBlock(ctx, cx - half, y0, capCols * ART, (capRows - 1) * ART, HAT_COLOR, 1);
+        return;
+      }
+      if (style === 'curly') {
+        outlinedBlock(ctx, cx - half - ART, y0, capCols * ART + 2 * ART, (capRows + 1) * ART, color, 2);
+        return;
+      }
+      outlinedBlock(ctx, cx - half, y0, capCols * ART, capRows * ART, color, 1);
+      if (style === 'spiky') {
+        [-half + ART, -ART, half - 2 * ART].forEach((dx) => px(ctx, cx + dx, y0 - ART, ART, ART, color));
+      }
+      if (style === 'long') {
+        const sideH = (capRows + 3) * ART;
+        px(ctx, cx - half - ART, y0 + (capRows - 2) * ART, 2 * ART, sideH, color);
+        px(ctx, cx + half - ART, y0 + (capRows - 2) * ART, 2 * ART, sideH, color);
+      }
+      px(ctx, cx - half, y0 + (capRows - 1) * ART, ART, ART, darken(color, 0.3)); // shadow accent
+    }
+
+    // 'front' — face-on: hair, face + eyes, neck, shirt torso with arms,
+    // trousers, feet. `headShift` (0 or ART) is the idle-bob offset applied
+    // ONLY to the head/neck rows — the one-art-pixel step the spec asks for.
+    function drawFrontSprite(ctx, cx, topY, appearance, headShift) {
+      const hy = topY - headShift;
+      const skin = appearance.skin;
+      const shirt = appearance.shirt;
+      drawHair(ctx, cx, hy, appearance.hairStyle, appearance.hairColor, 8, 4);
+      outlinedBlock(ctx, cx - 3 * ART, hy + 4 * ART, 6 * ART, 4 * ART, skin, 1); // face
+      px(ctx, cx - 2 * ART, hy + 6 * ART, ART, ART, OUTLINE); // eyes
+      px(ctx, cx + 1 * ART, hy + 6 * ART, ART, ART, OUTLINE);
+      px(ctx, cx - 2 * ART, hy + 8 * ART, 4 * ART, ART, darken(skin, 0.15)); // neck
+
+      outlinedBlock(ctx, cx - 6 * ART, topY + 9 * ART, 12 * ART, 8 * ART, shirt, 1); // torso + arms
+      px(ctx, cx - 6 * ART, topY + 9 * ART, 12 * ART, ART, lighten(shirt, 0.22));
+      px(ctx, cx - 6 * ART, topY + 16 * ART, 12 * ART, ART, darken(shirt, 0.35));
+
+      outlinedBlock(ctx, cx - 4 * ART, topY + 17 * ART, 8 * ART, 5 * ART, TROUSER_COLOR, 1); // trousers
+      px(ctx, cx - 4 * ART, topY + 21 * ART, 8 * ART, ART, darken(TROUSER_COLOR, 0.3));
+
+      outlinedBlock(ctx, cx - 4 * ART, topY + 22 * ART, 3 * ART, 2 * ART, SHOE_COLOR, 0); // feet
+      outlinedBlock(ctx, cx + 1 * ART, topY + 22 * ART, 3 * ART, 2 * ART, SHOE_COLOR, 0);
+    }
+
+    // 'seated' — back-of-head-and-shoulders view for an agent at a desk
+    // facing a monitor: hair fills the whole head (no face/eyes cutout),
+    // wider shoulders, no legs. The whole thing bobs together by `headShift`
+    // since it's nothing but head + shoulders.
+    function drawSeatedSprite(ctx, cx, topY, appearance, headShift) {
+      const y = topY - headShift;
+      const shirt = appearance.shirt;
+      drawHair(ctx, cx, y, appearance.hairStyle, appearance.hairColor, 10, 6);
+      px(ctx, cx - 2 * ART, y + 6 * ART, 4 * ART, ART, darken(appearance.skin, 0.1)); // neck sliver
+      outlinedBlock(ctx, cx - 7 * ART, y + 7 * ART, 14 * ART, 7 * ART, shirt, 2); // wide shoulders/back
+      px(ctx, cx - 7 * ART, y + 7 * ART, 14 * ART, ART, lighten(shirt, 0.2));
+      px(ctx, cx - 7 * ART, y + 12 * ART, 14 * ART, 2 * ART, darken(shirt, 0.3));
+    }
+
+    function drawAgentSprite(ctx, cx, topY, appearance, pose, frame) {
+      const headShift = frame ? ART : 0;
+      if (pose === 'seated') drawSeatedSprite(ctx, cx, topY, appearance, headShift);
+      else drawFrontSprite(ctx, cx, topY, appearance, headShift);
+    }
+
+    // ---- status glyph — leads the nametag, shape (not colour alone) tells
+    // the status apart: filled dot=idle, pulsing dot+ring=working, three
+    // dots=streaming, filled square=needs_review, filled triangle=failed.
+    function drawTagGlyph(ctx, status, x, cy, now) {
+      switch (status) {
+        case 'working': {
+          px(ctx, x, cy - ART, ART * 2, ART * 2, COLOR.amber);
+          const t = reducedMotion ? 0.5 : ((now % PULSE_MS) / PULSE_MS);
+          const ring = ART * 2 + Math.round(t * 2) * ART;
+          pxRingOutline(ctx, x - (ring - ART * 2) / 2, cy - ring / 2, ring, ring, withAlpha(COLOR.amber, 0.6 * (1 - t)), ART);
+          break;
+        }
+        case 'streaming':
+          px(ctx, x, cy - ART / 2, ART, ART, COLOR.accent);
+          px(ctx, x + ART * 2, cy - ART / 2, ART, ART, COLOR.accent);
+          px(ctx, x + ART * 4, cy - ART / 2, ART, ART, COLOR.accent);
+          break;
+        case 'needs_review':
+          px(ctx, x, cy - ART * 1.5, ART * 3, ART * 3, COLOR.green);
+          break;
+        case 'failed':
+          px(ctx, x + ART * 1.5, cy - ART, ART, ART, COLOR.red);
+          px(ctx, x + ART, cy, ART * 2, ART, COLOR.red);
+          px(ctx, x, cy + ART, ART * 4, ART, COLOR.red);
+          break;
+        default: // idle — filled green dot
+          px(ctx, x, cy - ART, ART * 2, ART * 2, COLOR.green);
+      }
+    }
+
+    // ---- furniture: desk (light top, darker front edge, monitor, keyboard,
+    // and a hash-varied mug or mini plant so pods aren't visibly cloned),
+    // top-down chair, and the room-corner potted plant. ----
+    function drawDeskFurniture(ctx, agent, deskX, deskY, colors, working, now) {
+      const top = lighten(colors.border, 0.55);
+      outlinedBlock(ctx, deskX, deskY, DESK_W, DESK_H, top, 1);
+      px(ctx, deskX, deskY + DESK_H - 2 * ART, DESK_W, 2 * ART, darken(colors.border, 0.4)); // front edge
+
+      const cx = deskX + DESK_W / 2;
+      const monW = 12 * ART, monH = 8 * ART;
+      const monX = cx - monW / 2, monY = deskY - monH + 3 * ART;
+      outlinedBlock(ctx, monX, monY, monW, monH, '#1c1c1c', 0);
+      const blink = working && !reducedMotion && Math.floor(now / 500) % 2 === 0;
+      px(ctx, monX + 3 * ART, monY + 3 * ART, ART, ART, working ? withAlpha(COLOR.accent, 0.9) : '#3a3a3a');
+      px(ctx, monX + 7 * ART, monY + 3 * ART, ART, ART, working ? withAlpha(COLOR.amber, 0.9) : '#3a3a3a');
+      px(ctx, monX + 5 * ART, monY + 6 * ART, ART, ART, working ? (blink ? COLOR.accent : withAlpha(COLOR.accent, 0.4)) : '#2c2c2c');
+
+      px(ctx, cx - 5 * ART, deskY + 5 * ART, 10 * ART, 3 * ART, '#dcd6c8'); // keyboard
+      px(ctx, cx - 5 * ART, deskY + 5 * ART, 10 * ART, ART, '#efe9db');
+
+      const v = idHash(agent.id) % 3; // hash-varied desk clutter — not every pod clones the same desk
+      if (v === 0) {
+        const mx = deskX + DESK_W - 6 * ART, my = deskY + DESK_H - 6 * ART;
+        outlinedBlock(ctx, mx, my, 3 * ART, 3 * ART, '#e5e5e5', 0); // mug
+        px(ctx, mx + 3 * ART, my + ART, ART, ART, '#e5e5e5'); // handle
+      } else if (v === 1) {
+        const px0 = deskX + DESK_W - 6 * ART, py0 = deskY + DESK_H - 7 * ART;
+        outlinedBlock(ctx, px0, py0 + 3 * ART, 3 * ART, 2 * ART, '#a0522d', 0); // mini pot
+        px(ctx, px0 + ART, py0, ART, 3 * ART, COLOR.green);
+        px(ctx, px0, py0 + ART, ART, 2 * ART, COLOR.green);
+      }
+    }
+
+    function drawChair(ctx, cx, cy) {
+      outlinedBlock(ctx, cx - 3 * ART, cy - 2 * ART, 6 * ART, 5 * ART, '#3a3a3a', 1); // seat
+      px(ctx, cx - 3 * ART, cy - 2 * ART, 6 * ART, 2 * ART, '#5a5a5a'); // back, nearer the agent
+      [[-4, 7], [4, 7], [-4, 13], [4, 13]].forEach(([dx, dy]) => px(ctx, cx + dx, cy + dy, ART, ART, '#232323')); // 4-spoke base
+    }
+
+    // A potted plant tucked in the room's far corner — decorative furniture,
+    // skipped in rooms too small to fit it without crowding a desk.
+    function drawPlant(ctx, room, colors) {
+      if (room.w < 3 || room.h < 3) return;
+      const cx = (room.x + room.w) * GRID - 14, cy = (room.y + room.h) * GRID - 10;
+      const pot = darken(colors.border, 0.35);
+      outlinedBlock(ctx, cx - 5, cy, 10, 7, pot, 1);
+      px(ctx, cx - 5, cy, 10, ART, lighten(pot, 0.25)); // rim highlight
+      [[-3, -4, 3, 4], [2, -5, 3, 4], [-1, -8, 4, 5]].forEach(([dx, dy, w, h]) => {
+        outlinedBlock(ctx, cx + dx, cy + dy, w, h, COLOR.green, 1);
+      });
+    }
+
+    // ---- tiled floor + carpet texture — rendered once to small repeating
+    // patterns and cached, so filling a whole viewport is a single fillRect
+    // rather than thousands of per-tile fillRect calls per frame. ----
+    let floorPatternCache = null;
+    function getFloorPattern(ctx) {
+      if (floorPatternCache) return floorPatternCache;
+      const ts = 8 * ART;
+      const t = document.createElement('canvas');
+      t.width = ts; t.height = ts;
+      const tctx = t.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      px(tctx, 0, 0, ts, ts, FLOOR_BASE);
+      px(tctx, 0, 0, ts, ART, FLOOR_GROUT);
+      px(tctx, 0, 0, ART, ts, FLOOR_GROUT);
+      floorPatternCache = ctx.createPattern(t, 'repeat');
+      return floorPatternCache;
+    }
+
+    let carpetPatternCache = null;
+    function getCarpetPattern(ctx) {
+      if (carpetPatternCache) return carpetPatternCache;
+      const ts = 8 * ART;
+      const t = document.createElement('canvas');
+      t.width = ts; t.height = ts;
+      const tctx = t.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      px(tctx, 0, 0, ART, ART, 'rgba(0,0,0,0.05)');
+      px(tctx, ts / 2, ts / 2, ART, ART, 'rgba(0,0,0,0.05)');
+      carpetPatternCache = ctx.createPattern(t, 'repeat');
+      return carpetPatternCache;
     }
 
     const canvas = document.getElementById('office-canvas');
     const listTable = document.getElementById('office-list');
     const panel = document.getElementById('office-panel');
     const ctx = canvas ? canvas.getContext('2d') : null;
+    if (ctx) ctx.imageSmoothingEnabled = false;
 
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let reducedMotion = motionQuery.matches;
@@ -717,7 +1058,7 @@
         a.label = a.name.length > 14 ? a.name.slice(0, 13) + '…' : a.name;
       }
       if (ctx) {
-        ctx.font = '500 10px ' + MONO;
+        ctx.font = '600 10px ' + MONO; // matches drawNametag's font exactly, so the cached width is accurate
         for (const a of roster.agents) a.labelWidth = ctx.measureText(a.label).width;
       }
     }
@@ -866,12 +1207,16 @@
       const w = canvas.clientWidth, h = canvas.clientHeight;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = COLOR.floor; // warm off-white between rooms, not --bg white
+      ctx.fillStyle = FLOOR_BASE; // flat safety base under the tiled pattern, covers any edge gap
       ctx.fillRect(0, 0, w, h);
 
       ctx.save();
       ctx.scale(camera.zoom, camera.zoom);
       ctx.translate(-camera.x, -camera.y);
+
+      // tiled tan floor across the visible world rect, not a flat fill
+      ctx.fillStyle = getFloorPattern(ctx);
+      ctx.fillRect(camera.x - GRID, camera.y - GRID, w / camera.zoom + GRID * 2, h / camera.zoom + GRID * 2);
 
       const steps = (appState && appState.steps) || [];
       for (const room of roster.rooms) drawRoom(room, roomIsActive(room, roster.agents, steps), now);
@@ -885,45 +1230,34 @@
       const colors = roomColors(room.name);
       const x = room.x * GRID, y = room.y * GRID, w = room.w * GRID, h = room.h * GRID;
       const heat = ease(roomHeat, room.id, isActive ? 1 : 0, now, EASE_ROOM_HEAT_MS);
+      const band = 2 * ART; // "2-art-pixel band" wall
 
-      roundRectPath(ctx, x, y, w, h, 10);
-      ctx.fillStyle = colors.fill;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = colors.border;
-      ctx.stroke();
+      blockRect(ctx, x, y, w, h, colors.border, 2); // wall
+      blockRect(ctx, x + band, y + band, w - 2 * band, h - 2 * band, colors.fill, 2); // carpet interior
+      px(ctx, x + band, y + band - ART, w - 2 * band, ART, lighten(colors.border, 0.35)); // wall top highlight
+
+      // carpet texture — a subtle repeating dot pattern clipped to the room interior
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x + band, y + band, w - 2 * band, h - 2 * band);
+      ctx.clip();
+      ctx.fillStyle = getCarpetPattern(ctx);
+      ctx.fillRect(x + band, y + band, w - 2 * band, h - 2 * band);
+      ctx.restore();
 
       // "room heat" — an animated (not snapped) amber glow while an agent in
       // the room is working/streaming.
       if (heat > 0.01) {
-        roundRectPath(ctx, x + 2, y + 2, w - 4, h - 4, 9);
-        ctx.strokeStyle = withAlpha(COLOR.amber, 0.55 * heat);
-        ctx.lineWidth = 3;
-        ctx.stroke();
+        pxRingOutline(ctx, x + band, y + band, w - 2 * band, h - 2 * band, withAlpha(COLOR.amber, 0.55 * heat), ART * 2);
       }
 
       ctx.fillStyle = COLOR.dim;
       ctx.font = '600 11px ' + MONO;
       ctx.textBaseline = 'top';
       ctx.textAlign = 'left';
-      ctx.fillText(room.name, x + 10, y + 8);
+      ctx.fillText(room.name, x + band + 8, y + band + 6);
 
-      drawPlant(room, colors);
-    }
-
-    // A potted plant tucked in the room's far corner — decorative furniture,
-    // skipped in rooms too small to fit it without crowding a desk.
-    function drawPlant(room, colors) {
-      if (room.w < 3 || room.h < 3) return;
-      const px = (room.x + room.w) * GRID - 14, py = (room.y + room.h) * GRID - 12;
-      ctx.fillStyle = darken(colors.border, 0.4);
-      ctx.fillRect(px - 5, py - 2, 10, 7);
-      ctx.fillStyle = COLOR.green;
-      [[-4, -3], [4, -3], [0, -8]].forEach(([dx, dy]) => {
-        ctx.beginPath();
-        ctx.arc(px + dx, py + dy, 4, 0, TAU);
-        ctx.fill();
-      });
+      drawPlant(ctx, room, colors);
     }
 
     function drawAgent(agent, steps, now) {
@@ -933,163 +1267,83 @@
       const ac = agentAvatarCenter(agent);
       const room = roomsById.get(agent.roomId);
       const colors = room ? roomColors(room.name) : ROOM_FALLBACK;
-      const deskColor = darken(colors.border, 0.15);
-      const deskEdgeColor = darken(colors.border, 0.4);
-      const monIdleColor = darken(colors.border, 0.6);
+      const working = status === 'working' || status === 'streaming';
 
-      // idle "breathing" — 1-2px, slow, phase-staggered per agent so the
-      // office doesn't animate in lockstep (JOB 3).
-      const bob = reducedMotion ? 0 : Math.sin((now / BOB_PERIOD_MS) * TAU + (idHash(agent.id) % 1000) / 1000 * TAU) * 1.5;
+      // idle "breathing" — a single ART-pixel head/shoulder shift, phase
+      // staggered per agent (stepped, not a smooth tween — sprite idle
+      // animation reads as a discrete frame flip, not motion).
+      const bobFrame = reducedMotion ? 0 : (Math.floor(now / (BOB_PERIOD_MS / 2)) + (idHash(agent.id) % 2)) % 2;
 
-      // hover — eased lift + nametag fade-in.
+      // hover — eased lift + nametag fade-in (the ease itself stays smooth;
+      // only the idle bob above is required to be a discrete step).
       const hovered = hoverAgentId === agent.id;
       const ht = ease(hoverT, agent.id, hovered ? 1 : 0, now, EASE_HOVER_MS);
       const isSelected = selected && selected.kind === 'agent' && selected.id === agent.id;
-      const lift = ht * 3;
-      const vx = ac.x, vy = ac.y + bob - lift;
+      const focused = focusedAgentId === agent.id && document.activeElement === canvas;
+      const lift = ht * 2 * ART;
+      const vx = ac.x, vy = ac.y - lift;
 
-      // chair
-      ctx.beginPath();
-      ctx.arc(p.x, deskY + DESK_H + 5, 5, 0, Math.PI, false);
-      ctx.strokeStyle = deskEdgeColor;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawDeskFurniture(ctx, agent, deskX, deskY, colors, working, now);
+      drawChair(ctx, vx, deskY - 4 * ART); // between the desk and the seated agent
 
-      // desk — darkened off the room's own border tone so it reads as
-      // furniture, not a same-shade tint of the floor.
-      ctx.fillStyle = deskColor;
-      ctx.strokeStyle = deskEdgeColor;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.rect(deskX, deskY, DESK_W, DESK_H);
-      ctx.fill();
-      ctx.stroke();
-
-      // monitor
-      const monW = 10, monH = 7;
-      const working = status === 'working' || status === 'streaming';
-      ctx.fillStyle = working ? withAlpha(COLOR.accent, 0.6) : monIdleColor;
-      ctx.fillRect(p.x - monW / 2, deskY - monH + 2, monW, monH);
-      ctx.strokeStyle = deskEdgeColor;
-      ctx.strokeRect(p.x - monW / 2, deskY - monH + 2, monW, monH);
-
-      // small animated activity indicator over the desk while working.
-      if (working) {
-        const pulseT = reducedMotion ? 0.5 : (Math.sin((now / 500) * TAU) + 1) / 2;
-        ctx.beginPath();
-        ctx.arc(p.x + monW / 2 + 5, deskY - monH + 1, 2.2, 0, TAU);
-        ctx.fillStyle = withAlpha(COLOR.amber, 0.5 + pulseT * 0.5);
-        ctx.fill();
-      }
-
-      // avatar: head + body capsule, ~14px tall
-      ctx.beginPath();
-      ctx.arc(vx, vy - 5, 3.4, 0, TAU);
-      ctx.fillStyle = '#4b4b4b';
-      ctx.fill();
-      roundRectPath(ctx, vx - 4, vy - 1, 8, 8, 3);
-      ctx.fillStyle = '#6e6e6e';
-      ctx.fill();
-
-      drawStatusMark(status, vx + 7, vy - 7, now);
+      const appearance = agentAppearance(agent.id);
+      const sprite = getAgentSprite(appearance, 'seated', bobFrame);
+      const visibleH = 14 * ART; // hair+shoulders footprint, used to center the sprite on vy
+      const bx = Math.floor((vx - SPR_W / 2) / ART) * ART;
+      const by = Math.floor((vy - visibleH / 2 - SPR_TOP) / ART) * ART;
+      ctx.drawImage(sprite, bx, by);
 
       if (hovered || isSelected) {
-        ctx.beginPath();
-        ctx.arc(vx, vy - 2, 12, 0, TAU);
-        ctx.strokeStyle = COLOR.accent;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        pxRingOutline(ctx, bx - ART, by - ART, SPR_W + 2 * ART, visibleH + 2 * ART, COLOR.accent, ART);
       }
-      if (focusedAgentId === agent.id && document.activeElement === canvas) {
-        ctx.beginPath();
-        ctx.arc(vx, vy - 2, 15, 0, TAU);
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = COLOR.accent;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.setLineDash([]);
+      if (focused) {
+        pxRingOutline(ctx, bx - 3 * ART, by - 3 * ART, SPR_W + 6 * ART, visibleH + 6 * ART, COLOR.accent, ART, true);
       }
 
-      const nametagAlpha = Math.max(ht, isSelected ? 1 : 0, (focusedAgentId === agent.id && document.activeElement === canvas) ? 1 : 0);
-      drawNametag(agent, vx, vy - 22, status, nametagAlpha);
+      if (status === 'streaming') drawSpeechBubble(ctx, vx, by - 34, now);
+
+      const nametagAlpha = Math.max(ht, isSelected ? 1 : 0, focused ? 1 : 0, status !== 'idle' ? 1 : 0);
+      drawNametag(agent, vx, by - 18, status, nametagAlpha, now);
     }
 
-    // STATUS — shape carries the meaning, color is a reinforcement only.
-    // idle = hollow circle · working = filled circle + expanding ring ·
-    // streaming = three dots · needs_review = filled square · failed = triangle.
-    function drawStatusMark(status, cx, cy, now) {
-      switch (status) {
-        case 'idle':
-          ctx.beginPath();
-          ctx.arc(cx, cy, 5, 0, TAU);
-          ctx.strokeStyle = COLOR.muted;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          break;
-        case 'working': {
-          ctx.beginPath();
-          ctx.arc(cx, cy, 4, 0, TAU);
-          ctx.fillStyle = COLOR.amber;
-          ctx.fill();
-          const t = reducedMotion ? 0.5 : ((now % PULSE_MS) / PULSE_MS);
-          ctx.beginPath();
-          ctx.arc(cx, cy, 5 + t * 7, 0, TAU);
-          ctx.strokeStyle = withAlpha(COLOR.amber, 0.7 * (1 - t));
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-          break;
-        }
-        case 'streaming':
-          ctx.fillStyle = COLOR.accent;
-          for (let i = -1; i <= 1; i++) {
-            ctx.beginPath();
-            ctx.arc(cx + i * 5, cy, 1.6, 0, TAU);
-            ctx.fill();
-          }
-          break;
-        case 'needs_review':
-          ctx.fillStyle = COLOR.green;
-          ctx.fillRect(cx - 4, cy - 4, 8, 8);
-          break;
-        case 'failed':
-          ctx.beginPath();
-          ctx.moveTo(cx, cy - 5);
-          ctx.lineTo(cx + 5, cy + 4);
-          ctx.lineTo(cx - 5, cy + 4);
-          ctx.closePath();
-          ctx.fillStyle = COLOR.red;
-          ctx.fill();
-          break;
-      }
+    // A small white pixel-art speech bubble above the nametag while a step
+    // is actively streaming — three dots and a short tail pointing down.
+    function drawSpeechBubble(ctx, cx, y, now) {
+      const w = 22, h = 12;
+      const x = Math.floor((cx - w / 2) / ART) * ART;
+      const yy = Math.floor(y / ART) * ART;
+      outlinedBlock(ctx, x, yy, w, h, '#ffffff', 2);
+      px(ctx, cx - ART, yy + h - ART, ART * 2, ART * 2, '#ffffff');
+      px(ctx, cx - ART / 2, yy + h + ART, ART, ART, '#ffffff'); // tail tip
+      const dotY = yy + h / 2 - ART / 2;
+      [-6, 0, 6].forEach((dx) => px(ctx, cx + dx - ART / 2, dotY, ART, ART, OUTLINE));
     }
 
     // Nametags are hidden by default (Gather-style) and fade in on hover,
-    // selection, or keyboard focus — `alpha` is the eased 0..1 amount.
-    function drawNametag(agent, cx, y, status, alpha) {
+    // selection, or keyboard focus — `alpha` is the eased 0..1 amount. Any
+    // agent that isn't idle is always shown (the people doing something are
+    // the labelled ones), matching the reference.
+    function drawNametag(agent, cx, y, status, alpha, now) {
       if (alpha <= 0.01) return;
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.font = '500 10px ' + MONO;
+      ctx.font = '600 10px ' + MONO;
       const textW = agent.labelWidth != null ? agent.labelWidth : ctx.measureText(agent.label).width;
-      const padX = 6, h = 14;
-      const w = textW + padX * 2;
-      const x = cx - w / 2;
-      roundRectPath(ctx, x, y, w, h, 7);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-      ctx.fill();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = COLOR.line;
-      ctx.stroke();
-      ctx.fillStyle = STATUS_TEXT_COLOR[status] || COLOR.dim;
+      const glyphW = 5 * ART, padX = 6, h = 14;
+      const w = Math.ceil(textW) + padX * 2 + glyphW;
+      const x = Math.floor((cx - w / 2) / ART) * ART;
+      const yy = Math.floor(y / ART) * ART;
+      blockRect(ctx, x, yy, w, h, TAG_BG, 3); // near-black, ~85% opaque, rounded via omitted corners
+      drawTagGlyph(ctx, status, x + padX / 2, yy + h / 2, now);
+      ctx.fillStyle = TAG_TEXT; // white text
       ctx.textBaseline = 'middle';
-      ctx.textAlign = 'center';
-      ctx.fillText(agent.label, cx, y + h / 2 + 0.5);
       ctx.textAlign = 'left';
+      ctx.fillText(agent.label, x + padX + glyphW, yy + h / 2 + 0.5);
       ctx.restore();
     }
 
     // Delegation beam: a travelling dot along the Corner Office -> desk path
-    // with a fading trail behind it, over BEAM_MS (~700ms).
+    // with a fading pixel trail behind it, over BEAM_MS (~700ms).
     function drawBeams(now) {
       for (const b of animations) {
         if (b.kind !== 'beam') continue;
@@ -1097,23 +1351,14 @@
         const ex = b.x1 + (b.x2 - b.x1) * t;
         const ey = b.y1 + (b.y2 - b.y1) * t;
 
-        ctx.beginPath();
-        ctx.moveTo(b.x1, b.y1);
-        ctx.lineTo(ex, ey);
-        ctx.strokeStyle = withAlpha(COLOR.accent, 0.32 * (1 - t * 0.5));
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(ex, ey, 6, 0, TAU);
-        ctx.strokeStyle = withAlpha(COLOR.accent, 0.4);
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(ex, ey, 3.5, 0, TAU);
-        ctx.fillStyle = COLOR.accent;
-        ctx.fill();
+        const steps = 10;
+        for (let i = 0; i <= steps; i++) {
+          const tt = t * (i / steps);
+          const sx = b.x1 + (b.x2 - b.x1) * tt, sy = b.y1 + (b.y2 - b.y1) * tt;
+          px(ctx, sx, sy, ART, ART, withAlpha(COLOR.accent, 0.28 * (1 - tt * 0.5)));
+        }
+        px(ctx, ex - ART, ey - ART, ART * 3, ART * 3, withAlpha(COLOR.accent, 0.5));
+        px(ctx, ex - ART / 2, ey - ART / 2, ART, ART, COLOR.accent);
       }
     }
 
@@ -1124,6 +1369,7 @@
       const h = Math.max(1, Math.round(rect.height));
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
+      ctx.imageSmoothingEnabled = false; // resizing the backing store resets context state
       draw();
     }
 
@@ -1703,6 +1949,7 @@
     agentStatus, STATUS_SHAPE, shapeForStatus, roomIsActive, clamp, clampCamera,
     screenToWorld, hitTestAgent, stepInstruction, taskPlan, nextSelection, __selftest,
     escapeHtml, markdownToHtml, summarizeToolInput, formatDoneStats, formatDuration, truncate,
+    idHash, agentAppearance, POSE_ANATOMY,
   };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = publicApi;
