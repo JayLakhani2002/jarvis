@@ -1802,7 +1802,12 @@
         tr.appendChild(el('td', 'status-' + status, status.replace('_', ' ')));
         tr.appendChild(el('td', null, (step && stepInstruction(step)) || '—'));
         tr.appendChild(el('td', null, '$' + ((step && step.costUsd) || 0).toFixed(4)));
-        tr.addEventListener('click', () => selectAgent(agent));
+        tr.addEventListener('click', () => {
+          // Returning to the floor is the point of clicking a row: you get the
+          // agent's panel AND the office back, rather than staying in the table.
+          setListMode(false);
+          selectAgent(agent);
+        });
         tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') selectAgent(agent); });
         tbody.appendChild(tr);
       }
@@ -1810,12 +1815,30 @@
     }
 
     function toggleListMode() {
-      listMode = !listMode;
+      setListMode(!listMode);
+    }
+
+    // The button names where it TAKES you, not where you are. It used to read
+    // "List" in both modes and only flip aria-pressed, so from the list there was
+    // no visible way back to the floorplan.
+    function setListMode(on) {
+      listMode = on;
       canvas.hidden = listMode;
       listTable.hidden = !listMode;
+
       const toggleBtn = document.getElementById('office-toggle');
-      if (toggleBtn) toggleBtn.setAttribute('aria-pressed', String(listMode));
-      if (listMode) renderList(); else draw();
+      const label = document.getElementById('office-toggle-label');
+      const icon = document.getElementById('office-toggle-icon');
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-pressed', String(listMode));
+        toggleBtn.title = listMode
+          ? 'Back to the office floor (Cmd+L)'
+          : 'Show the list of agents (Cmd+L)';
+      }
+      if (label) label.textContent = listMode ? 'Office' : 'List';
+      if (icon) icon.setAttribute('href', listMode ? '#i-back' : '#i-tasks');
+
+      if (listMode) renderList(); else { resizeCanvas(); draw(); }
     }
 
     // ---------------- input wiring ----------------
