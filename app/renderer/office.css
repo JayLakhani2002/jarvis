@@ -50,11 +50,21 @@
 
 .ghost {
   appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
   background: var(--panel); border: 1px solid var(--line); color: var(--dim);
-  border-radius: 8px; padding: 7px 12px; font-size: 12px;
+  border-radius: 8px; padding: 7px 12px; font-size: 12px; line-height: 1;
   transition: background var(--fast) var(--ease-out), color var(--fast) var(--ease-out),
               border-color var(--fast) var(--ease-out);
 }
+/* An inline <svg> with no width/height falls back to the SVG spec's 300x150.
+   styles.css only sizes .nav-item/.icon-btn icons, so .ghost needs its own rule
+   or the button renders enormous. */
+.ghost svg {
+  width: 14px; height: 14px; flex: 0 0 auto;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+
 .ghost:hover { background: var(--raised); color: var(--text); }
 .ghost[aria-pressed="true"] {
   background: var(--accent-soft); color: var(--cyan); border-color: var(--cyan);
